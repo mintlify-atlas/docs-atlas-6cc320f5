@@ -1,0 +1,133 @@
+---
+title: "Workflows extension"
+description: "Add River-backed multi-step workflow orchestration with dependency tracking to your Andurel project."
+---
+
+The Workflows extension scaffolds a complete workflow system on top of [River](https://riverqueue.com/), Andurel's PostgreSQL-backed job queue. It provides a `Builder` API for defining task graphs, a background `DependencyChecker` that promotes tasks to runnable when their dependencies complete, and database migrations for the required tables and indexes.
+
+## Adding the extension
+
+<Steps>
+  <Step title="At project creation">
+    ```bash
+    andurel new myapp -e workflows
+    ```
+  </Step>
+  <Step title="To an existing project">
+    ```bash
+    andurel extension add workflows
+    ```
+
+    After the extension is applied, run `go mod tidy` if it was not triggered automatically.
+  </Step>
+</Steps>
+
+## What gets generated
+
+### Application code
+
+| File | Description |
+|---|---|
+| `queue/workflow/workflow.go` | `Builder` type and workflow state constants. Entry point for defining and inserting workflows. |
+| `queue/workflow/lifecycle.go` | Lifecycle management for workflow execution |
+| `queue/workflow/lifecycle_task.go` | Per-task lifecycle helpers |
+| `queue/workflow/lifecycle_types.go` | Shared lifecycle type definitions |
+| `queue/workflow/lifecycle_control.go` | Control-flow utilities (cancel, pause, resume) |
+| `queue/workflow/lifecycle_internal.go` | Internal lifecycle implementation details |
+| `queue/workflow/worker.go` | River worker integration for the workflow queue |
+| `queue/workflow/outputs.go` | Workflow output storage and retrieval |
+| `queue/workflow/checker.go` | `DependencyChecker` background worker |
+
+### Database migrations
+
+Two timestamped migrations are added to `database/migrations/`:
+
+| Migration | Description |
+|---|---|
+| `<timestamp>_add_workflow_indexes.sql` | Indexes on `river_job` for workflow metadata queries |
+| `<timestamp+1s>_create_workflow_outputs_table.sql` | `workflow_outputs` table for storing task results |
+
+Run migrations after applying the extension:
+
+```bash
+andurel migrate up
+```
+
+## How it works
+
+Workflows are directed acyclic graphs (DAGs) of River jobs. Each node in the graph is a **task** — a named `river.JobArgs` value with an optional list of task names it depends on.
+
+### Defining a workflow
+
+Use `workflow.New()` to create a `Builder`, add tasks with `AddTask`, then call `Insert` to persist all jobs to the database:
+
+```go
+wf := workflow.New()
+
+// Tasks with no dependencies are immediately ready to run.
+wf.AddTask("fetch-data", FetchDataArgs{UserID: userID}, nil, nil)
+
+// This task waits for "fetch-data" to complete first.
+wf.AddTask("process-data", ProcessDataArgs{}, nil, []string{"fetch-data"})
+
+// This task waits for "process-data".
+wf.AddTask("send-report", SendReportArgs{}, nil, []string{"process-data"})
+
+jobIDs, err := wf.Insert(ctx, riverClient)
+```
+
+`Builder.Validate()` is called automatically on insert. It rejects empty workflows and detects cycles.
+
+### Workflow states
+
+Each job carries a `WorkflowMetadata` struct in its River metadata field. The `workflow_state` field progresses through:
+
+| State | Meaning |
+|---|---|
+| `pending` | Waiting for one or more dependencies to complete |
+| `ready` | Dependencies satisfied; eligible for River to pick up |
+| `running` | Currently being executed by a worker |
+| `completed` | Finished successfully |
+| `failed` | Failed or cancelled due to a dependency failure |
+
+Tasks with no dependencies start in the `ready` state. All others start in `pending` and are scheduled far in the future (one year) so River does not pick them up prematurely.
+
+### DependencyChecker
+
+The `DependencyChecker` is a background goroutine initialized in your application's main setup:
+
+```go
+dependencyChecker := workflow.NewDependencyChecker(pool, 30*time.Second)
+```
+
+It runs on a configurable interval (default 30 seconds) and queries `river_job` for all jobs in the `pending` workflow state. For each one it:
+
+1. Looks up the states of all declared dependencies within the same workflow.
+2. If all dependencies are `completed`, marks the job as `ready` and sets `scheduled_at = NOW()` so River picks it up.
+3. If any dependency has `failed` and `ignore_failed` is not set, cancels the job.
+
+The checker runs as a registered background worker in your application and stops cleanly when the context is cancelled:
+
+```go
+// Started automatically as part of app initialization
+go dependencyChecker.Start(ctx)
+```
+
+<Note>
+  The 30-second polling interval means there is up to a 30-second delay between a dependency completing and its dependent task becoming runnable. Reduce the interval in latency-sensitive workflows.
+</Note>
+
+## Use cases
+
+- **Multi-step processes** — chain data fetch, transform, and export jobs with clear dependency ordering
+- **Saga patterns** — coordinate distributed operations across multiple services with compensating tasks
+- **Long-running operations** — break large jobs into independently retriable steps
+- **Fan-out / fan-in** — run parallel tasks and then converge on a final aggregation step
+
+<Tip>
+  Use `workflow.GetWorkflowMetadata(job)` inside any River worker to read the `WorkflowMetadata` for the currently executing job, including its `WorkflowID` and `TaskName`.
+</Tip>
+
+<Warning>
+  The workflows extension runs `go mod tidy` as a post-step to pull in the River workflow dependencies. Ensure you have network access when applying the extension.
+</Warning>

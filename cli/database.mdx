@@ -1,0 +1,161 @@
+---
+title: "andurel database"
+description: "Database lifecycle commands: seed, create, drop, nuke, and rebuild."
+---
+
+Manage the lifecycle of the PostgreSQL database configured in your project's `.env` file. Destructive commands (drop, nuke, rebuild) prompt for confirmation before proceeding.
+
+## Usage
+
+```bash
+andurel database [subcommand] [flags]
+```
+
+**Aliases:** `d`, `db`
+
+## Required environment variables
+
+All subcommands read the following variables from `.env`:
+
+| Variable | Description |
+|----------|-------------|
+| `DB_KIND` | Database driver (e.g. `postgres`) |
+| `DB_HOST` | Database host |
+| `DB_PORT` | Database port |
+| `DB_NAME` | Database name |
+| `DB_USER` | Database user |
+| `DB_PASSWORD` | Database password |
+| `DB_SSL_MODE` | SSL mode (e.g. `disable`, `require`) |
+
+## Subcommands
+
+| Subcommand | Description |
+|------------|-------------|
+| `seed` | Run the seed file at `database/seeds/main.go`. |
+| `create` | Create the configured database. |
+| `drop` | Drop the configured database (prompts for confirmation). |
+| `nuke` | Drop and recreate the configured database (prompts for confirmation). |
+| `rebuild` | Drop, recreate, run all migrations, and seed (prompts for confirmation). |
+
+---
+
+## andurel database seed
+
+Run `database/seeds/main.go` using `go run`. Edit this file to populate your database with initial or test data using model factories.
+
+```bash
+andurel database seed
+```
+
+### Example
+
+```bash
+andurel database seed
+# or using an alias
+andurel db seed
+```
+
+---
+
+## andurel database create
+
+Create the configured database using the credentials from `.env`. Connects to the `postgres` admin database (or `template1` if the target database is named `postgres`) to issue the `CREATE DATABASE` statement.
+
+```bash
+andurel database create
+```
+
+### Example
+
+```bash
+andurel database create
+andurel db create
+```
+
+---
+
+## andurel database drop
+
+Drop the configured database. Prompts for confirmation before proceeding. Active connections to the database are terminated before the drop.
+
+```bash
+andurel database drop [flags]
+```
+
+### Flags
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--force` | bool | `false` | Allow dropping system databases (`postgres`, `template0`, `template1`). Without this flag the command refuses to drop system databases. |
+
+### Example
+
+```bash
+andurel database drop
+andurel db drop --force
+```
+
+<Warning>
+This is a destructive operation. All data in the database will be permanently deleted.
+</Warning>
+
+---
+
+## andurel database nuke
+
+Drop and immediately recreate the configured database in one step. Prompts for confirmation.
+
+```bash
+andurel database nuke [flags]
+```
+
+### Flags
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--force` | bool | `false` | Allow nuking system databases. |
+
+### Example
+
+```bash
+andurel database nuke
+andurel db nuke --force
+```
+
+<Warning>
+All data in the database will be permanently deleted.
+</Warning>
+
+---
+
+## andurel database rebuild
+
+Drop the database, recreate it, apply all pending migrations, and run seeds. This is the fastest way to reset a development database to a fully migrated and seeded state.
+
+```bash
+andurel database rebuild [flags]
+```
+
+### Flags
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--force` | bool | `false` | Allow rebuilding system databases. |
+| `--skip-seed` | bool | `false` | Skip running the seed file after migrations complete. |
+
+### Example
+
+```bash
+# Full rebuild with seed
+andurel database rebuild
+
+# Rebuild without seeding
+andurel database rebuild --skip-seed
+
+# Using alias
+andurel db rebuild --force --skip-seed
+```
+
+<Warning>
+All data in the database will be permanently deleted before the rebuild begins.
+</Warning>

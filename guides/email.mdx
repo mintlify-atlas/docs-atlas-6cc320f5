@@ -1,0 +1,154 @@
+---
+title: "Email"
+description: "Send transactional and marketing emails with Mailpit in development and any SMTP provider or AWS SES in production."
+---
+
+Andurel includes an email system with templating, a local testing tool, and first-class support for AWS SES. The email client is abstracted behind two interfaces so you can swap providers without touching application code.
+
+## Interfaces
+
+```go
+// email/email.go
+type TransactionalSender interface {
+    SendTransactional(ctx context.Context, payload TransactionalPayload) error
+}
+
+type MarketingSender interface {
+    SendMarketing(ctx context.Context, payload MarketingPayload) error
+}
+```
+
+All email sending in services and workers goes through these interfaces. The concrete client (Mailpit, AWS SES, or your own SMTP implementation) is injected at startup.
+
+## Email templates
+
+Templates live in the `email/` directory and are written in [Templ](https://templ.guide/):
+
+```
+email/
+├── email.go              # TransactionalSender/MarketingSender interfaces and helpers
+├── base_layout.templ     # Shared HTML wrapper for all email templates
+├── components.templ      # Reusable email components (buttons, text blocks, etc.)
+├── verify_email.templ    # Email verification message
+└── reset_password.templ  # Password reset message
+```
+
+Each template type implements the `Transformer` interface:
+
+```go
+type Transformer interface {
+    ToHTML() (string, error)
+    ToText() (string, error)
+}
+```
+
+To create a new template, add a `.templ` file in the `email/` directory that embeds `base_layout` and implements `ToHTML()` and `ToText()`.
+
+## Sending an email
+
+Emails are typically sent via a background job rather than inline in a request handler. Enqueue a `SendTransactionalEmailArgs` job:
+
+```go
+// Inside a service, within a transaction
+_, err = insertOnly.InsertTx(ctx, tx, jobs.SendTransactionalEmailArgs{
+    Data: email.TransactionalData{
+        To:       user.Email,
+        From:     config.DefaultSenderSignature,
+        Subject:  "Your subject line",
+        HTMLBody: html,
+        TextBody: text,
+    },
+}, nil)
+```
+
+The worker (`queue/workers/send_transactional_email.go`) calls `email.SendTransactional` and respects the `IsRetryable` error classification — non-retryable errors (such as validation failures) cancel the job immediately.
+
+## Development vs. production setup
+
+<Tabs>
+  <Tab title="Development (Mailpit)">
+    In development, Andurel ships with [Mailpit](https://mailpit.axllent.org/) — a local SMTP server with a web UI for inspecting sent emails. Start it with:
+
+    ```bash
+    andurel app mailpit
+    ```
+
+    Mailpit listens on `localhost:1025` (SMTP) and `localhost:8025` (web UI) by default.
+
+    Configure the host and port in `.env`:
+
+    ```bash
+    MAILPIT_HOST=0.0.0.0
+    MAILPIT_PORT=1025
+    ```
+
+    The Mailpit client (`clients/email/mailpit.go`) implements both `TransactionalSender` and `MarketingSender` using Go's standard `net/smtp` package — no credentials required.
+  </Tab>
+
+  <Tab title="Production (AWS SES)">
+    Add the `aws-ses` extension when creating a new project:
+
+    ```bash
+    andurel new myapp -e aws-ses
+    ```
+
+    Or add it to an existing project:
+
+    ```bash
+    andurel extension add aws-ses
+    ```
+
+    This generates `clients/email/aws_ses.go` and `config/aws_ses.go`, and wires the client into your application automatically.
+
+    Set the required environment variables:
+
+    ```bash
+    AWS_REGION=us-east-1
+    AWS_SES_ACCESS_KEY_ID=your-access-key-id
+    AWS_SES_SECRET_ACCESS_KEY=your-secret-access-key
+    AWS_SES_CONFIGURATION_SET=your-configuration-set
+    ```
+
+    The AWS SES client is initialized at startup:
+
+    ```go
+    emailClient := mailclients.NewAwsSes(
+        cfg.AwsSes.Region,
+        cfg.AwsSes.AccessKeyID,
+        cfg.AwsSes.SecretAccessKey,
+        cfg.AwsSes.ConfigurationSet,
+    )
+    ```
+
+    The same `email.TransactionalSender` interface is used throughout — no application code changes are needed when switching from Mailpit to SES.
+  </Tab>
+
+  <Tab title="Other SMTP providers">
+    To use any other SMTP provider (SendGrid, Postmark, Resend, etc.), implement the `TransactionalSender` interface:
+
+    ```go
+    type MyProviderClient struct { /* ... */ }
+
+    func (c *MyProviderClient) SendTransactional(
+        ctx context.Context,
+        payload email.TransactionalPayload,
+    ) error {
+        // call your provider's API
+    }
+    ```
+
+    Wire it in `cmd/app/main.go` in place of the Mailpit or SES client.
+  </Tab>
+</Tabs>
+
+## Error handling
+
+The email package defines three error categories that the worker uses to determine retry behavior:
+
+| Type | Description | Retried? |
+|---|---|---|
+| `ValidationError` | Missing required fields | No |
+| `PermanentError` | Delivery permanently failed | No |
+| `TemporaryError` | Transient failure (rate limit, timeout) | Yes |
+
+Unknown errors are treated as retryable by default.

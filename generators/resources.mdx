@@ -1,0 +1,120 @@
+---
+title: "Resource generator"
+description: "Generate a complete CRUD resource — model, controller, views, and routes — in a single command."
+---
+
+The resource generator is the most important generator in Andurel. In a single command it produces everything needed for a fully functional CRUD interface: a model file with database functions, SQLC queries, a controller with all seven CRUD actions, Templ view templates, route definitions, and route registration.
+
+## Usage
+
+```bash
+andurel generate resource [name]
+```
+
+**Alias:** `andurel g r [name]`
+
+| Flag | Description |
+|------|-------------|
+| `--table-name` | Override the default table name (defaults to the plural form of the model name, e.g. `Product` → `products`) |
+
+## Examples
+
+```bash
+# Generate a full resource using the default table name (products)
+andurel generate resource Product
+
+# Generate a resource with a custom table name
+andurel generate resource Feedback --table-name=user_feedback
+```
+
+## What gets created
+
+Running `andurel generate resource Product` produces:
+
+| File | Description |
+|------|-------------|
+| `models/product.go` | Model with CRUD database functions |
+| `models/factories/product.go` | Factory for test data generation |
+| `database/queries/products.sql` | SQLC query definitions |
+| `models/internal/db/` | Generated SQLC Go code (do not edit) |
+| `controllers/products.go` | Controller with Index, Show, New, Create, Edit, Update, Destroy |
+| `views/products_resource.templ` | Templ view templates |
+| `views/products_resource_templ.go` | Generated Go code from Templ (do not edit) |
+| `router/routes/products.go` | Route variable definitions |
+| `router/connect_products_routes.go` | Route registration |
+
+The generator also injects the controller registration into `cmd/app/main.go`.
+
+<Warning>
+A migration must exist before running the resource generator. The table must have an `id` primary key column. Supported types are `uuid`, `serial`, `bigserial`, and `text`/`varchar` (string). If no valid `id` primary key is found, generation will fail.
+</Warning>
+
+## Workflow
+
+Follow this sequence every time you add a new resource:
+
+<Steps>
+  <Step title="Create a migration">
+    Create a new migration file with `andurel migrate new`. Define your table schema — including an `id` primary key and optionally `created_at` / `updated_at` timestamps.
+
+    ```bash
+    andurel migrate new create_products_table
+    ```
+
+    Then open the generated file in `database/migrations/` and write your SQL:
+
+    ```sql
+    -- +goose Up
+    CREATE TABLE products (
+        id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        name       TEXT NOT NULL,
+        price      INTEGER NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    -- +goose Down
+    DROP TABLE products;
+    ```
+  </Step>
+
+  <Step title="Apply the migration">
+    Run the migration against your database so Andurel can read the schema when generating code.
+
+    ```bash
+    andurel migrate up
+    ```
+  </Step>
+
+  <Step title="Generate the resource">
+    Run the resource generator. Andurel reads your migration files to understand the table schema and generates all the files listed above.
+
+    ```bash
+    andurel generate resource Product
+    ```
+  </Step>
+
+  <Step title="Start the development server">
+    Your new resource is immediately available at `/products`.
+
+    ```bash
+    andurel run
+    ```
+  </Step>
+</Steps>
+
+## Philosophy
+
+<Note>
+Resource generation is a **one-time scaffold**. After the generator runs, the produced files are yours to own and modify. Andurel will not regenerate or overwrite them. Extend, refactor, and customize the code freely — the generator just gives you a complete, working starting point.
+</Note>
+
+The resource generator is equivalent to running the model, controller, and view generators in sequence:
+
+```bash
+# These three commands are equivalent to one `generate resource`
+andurel generate model Product
+andurel generate controller Product --with-views
+```
+
+Use the individual generators when you need finer control — for example, generating a model first and adding a controller later.

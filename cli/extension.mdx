@@ -1,0 +1,85 @@
+---
+title: "andurel extension"
+description: "Add and list extensions applied to an Andurel project."
+---
+
+Manage optional extensions for your project. Extensions are recorded in `andurel.lock` with the timestamp at which they were applied. The `add` command writes to the lock file but does not scaffold any files automatically — extensions are fully applied when provided to `andurel new` at project creation, or by running the relevant setup steps manually.
+
+## Usage
+
+```bash
+andurel extension [subcommand]
+```
+
+**Aliases:** `ext`, `e`
+
+## Available extensions
+
+| Extension | Description |
+|-----------|-------------|
+| `docker` | Adds a `Dockerfile` for containerizing the application. |
+| `aws-ses` | Configures the email client to use AWS SES. |
+| `workflows` | Enables River-powered background workflow support. |
+
+## Subcommands
+
+| Subcommand | Alias | Description |
+|------------|-------|-------------|
+| `add [extension-name]` | — | Add an extension entry to `andurel.lock`. |
+| `list` | `ls` | List all extensions currently recorded in `andurel.lock`. |
+
+---
+
+## andurel extension add
+
+Add an extension to the project by recording it in `andurel.lock` with the current timestamp. Returns an error if the extension is already listed.
+
+```bash
+andurel extension add [extension-name]
+```
+
+### Examples
+
+```bash
+andurel extension add docker
+andurel extension add aws-ses
+andurel extension add workflows
+
+# Using aliases
+andurel ext add docker
+andurel e add workflows
+```
+
+---
+
+## andurel extension list
+
+List all extensions that have been applied to the project, along with the timestamp at which each was added.
+
+```bash
+andurel extension list
+```
+
+**Alias:** `ls`
+
+### Example
+
+```bash
+andurel extension list
+andurel extension ls
+andurel ext list
+```
+
+Sample output:
+
+```
+Extensions:
+  - docker (applied: 2024-03-15T10:30:00Z)
+  - aws-ses (applied: 2024-04-01T08:00:00Z)
+```
+
+If no extensions have been added, the command prints:
+
+```
+No extensions applied to this project
+```

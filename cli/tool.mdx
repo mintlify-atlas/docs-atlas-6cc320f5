@@ -1,0 +1,96 @@
+---
+title: "andurel tool"
+description: "Manage project tool binaries: sync from andurel.lock or pin a specific tool version."
+---
+
+Download and manage the tool binaries that Andurel uses under `bin/`. All tool versions are pinned in `andurel.lock` so every developer on a project uses the exact same binary versions.
+
+## Usage
+
+```bash
+andurel tool [subcommand]
+```
+
+**Alias:** `t`
+
+## Managed tools
+
+The following tools are recognized by Andurel and can be managed through this command:
+
+| Tool | Description |
+|------|-------------|
+| `templ` | Templ templating engine |
+| `sqlc` | SQL compiler |
+| `goose` | Database migrations |
+| `mailpit` | Email testing server |
+| `usql` | Universal SQL CLI (used by `andurel app console`) |
+| `dblab` | Database UI (used by `andurel app dblab`) |
+| `shadowfax` | Andurel development server |
+| `tailwindcli` | Tailwind CSS CLI |
+
+## Subcommands
+
+| Subcommand | Description |
+|------------|-------------|
+| `sync` | Download and install all tools listed in `andurel.lock`. |
+| `set-version <tool> <version>` | Pin a tool to a specific version in `andurel.lock` and sync it immediately. |
+
+---
+
+## andurel tool sync
+
+Read `andurel.lock`, compare each listed tool against the binary currently installed in `bin/`, and download any that are missing or at the wrong version. Binaries in `bin/` that are not listed in `andurel.lock` are removed.
+
+```bash
+andurel tool sync
+```
+
+**Alias:** `t sync`
+
+### Behavior
+
+- Checks the installed binary version by running the binary with common version flags (`--version`, `-version`, `version`, `--help`).
+- Skips download if the installed version already matches the lock file.
+- Prints a status line for each tool: up to date (`✓`), updating (`⟳`), or downloading (`⬇`).
+- Removes binaries present in `bin/` that are not listed in `andurel.lock`.
+- Reports tools for which no release could be found for the current OS/architecture.
+
+### Example
+
+```bash
+andurel tool sync
+andurel t sync
+```
+
+---
+
+## andurel tool set-version
+
+Update a tool's version in `andurel.lock` and immediately download the new binary to `bin/`. The `v` prefix is optional — it is normalized automatically.
+
+```bash
+andurel tool set-version <tool> <version>
+```
+
+### Arguments
+
+| Argument | Description |
+|----------|-------------|
+| `tool` | Name of the tool (must be one of the managed tools listed above). |
+| `version` | Target version, with or without the `v` prefix (e.g. `0.3.977` or `v0.3.977`). |
+
+### Examples
+
+```bash
+andurel tool set-version templ 0.3.977
+andurel tool set-version sqlc 1.30.0
+andurel tool set-version tailwindcli 4.1.18
+andurel tool set-version shadowfax 0.1.3
+
+# Using the alias
+andurel t set-version goose 3.24.0
+```
+
+<Note>
+`set-version` updates `andurel.lock` and then syncs only the affected tool. Commit `andurel.lock` after changing a tool version so your team gets the same binary.
+</Note>

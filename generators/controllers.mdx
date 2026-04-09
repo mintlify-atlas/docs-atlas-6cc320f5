@@ -1,0 +1,88 @@
+---
+title: "Controller generator"
+description: "Generate a resource controller with full CRUD actions and corresponding route definitions."
+---
+
+The controller generator creates a Go controller file with all seven CRUD actions and the matching route files. It uses Echo handler signatures and generates routes that are automatically registered in the application.
+
+## Usage
+
+```bash
+andurel generate controller [model_name]
+```
+
+**Alias:** `andurel g c [name]`
+
+| Flag | Description |
+|------|-------------|
+| `--with-views` | Generate Templ view templates alongside the controller |
+
+## Examples
+
+```bash
+# Generate a controller without views
+andurel generate controller Product
+
+# Generate a controller and view templates together
+andurel generate controller Product --with-views
+```
+
+## Prerequisites
+
+The model must already exist before generating a controller. If the model file is not found, the generator will print an error and stop.
+
+```bash
+# Generate the model first
+andurel generate model Product
+
+# Then generate the controller
+andurel generate controller Product
+```
+
+## What gets created
+
+Running `andurel generate controller Product` produces:
+
+| File | Description |
+|------|-------------|
+| `controllers/products.go` | Controller with all CRUD action handlers |
+| `router/routes/products.go` | Route variable definitions |
+| `router/connect_products_routes.go` | Route registration file |
+
+The generator also injects the controller registration into `cmd/app/main.go`.
+
+When `--with-views` is passed, Templ view templates are generated alongside the controller (equivalent to running the [view generator](/generators/views) separately):
+
+| File | Description |
+|------|-------------|
+| `views/products_resource.templ` | Templ template source (edit this) |
+| `views/products_resource_templ.go` | Generated Go code from Templ (do not edit) |
+
+## Generated actions
+
+The controller includes the following Echo handler methods:
+
+| Action | Description |
+|--------|-------------|
+| `Index` | List all records |
+| `Show` | Display a single record |
+| `New` | Render the new record form |
+| `Create` | Handle form submission to create a record |
+| `Edit` | Render the edit form |
+| `Update` | Handle form submission to update a record |
+| `Destroy` | Delete a record |
+
+All handlers use the `*echo.Context` signature from the [Echo](https://echo.labstack.com/) framework.
+
+## Route ID types
+
+The generated routes use a constructor that matches the `id` column type on the table:
+
+| ID column type | Route constructor |
+|----------------|-------------------|
+| `uuid` | `NewRouteWithUUIDID` |
+| `serial` / `integer` | `NewRouteWithSerialID` |
+| `bigserial` / `bigint` | `NewRouteWithBigSerialID` |
+| `text` / `varchar` | `NewRouteWithStringID` |
+
+The appropriate constructor is selected automatically based on the migration schema. To add custom routes to an existing controller, use the [fragment generator](/generators/fragments).

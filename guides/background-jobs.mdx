@@ -1,0 +1,186 @@
+---
+title: "Background jobs"
+description: "Run deferred and asynchronous work using River, Andurel's PostgreSQL-backed job queue."
+---
+
+Andurel uses [River](https://riverqueue.com/) for background job processing. River runs entirely on PostgreSQL — there is no Redis instance, no separate queue server, and no additional infrastructure to operate.
+
+## How it works
+
+River stores jobs in a PostgreSQL table and processes them with worker goroutines running inside your application process. Jobs are persisted across restarts and benefit from PostgreSQL's transactional guarantees: you can enqueue a job inside the same database transaction that creates the related record, so the job is only visible if the transaction commits.
+
+The default queue is configured with a maximum of 100 concurrent workers:
+
+```go
+// queue/queue.go
+riverClient, err := river.NewClient(riverpgxv5.New(db.Conn()), &river.Config{
+    Queues: map[string]river.QueueConfig{
+        river.QueueDefault: {MaxWorkers: 100},
+    },
+    Logger:  slog.Default(),
+    Workers: workers,
+})
+```
+
+## Directory structure
+
+```
+queue/
+├── jobs/        # Job argument structs — one file per job kind
+└── workers/     # Worker implementations — one file per worker
+```
+
+## Defining a job
+
+A job is a Go struct that implements `river.JobArgs` by providing a `Kind()` string. Place job structs in `queue/jobs/`.
+
+```go
+// queue/jobs/send_welcome_email.go
+package jobs
+
+import "myapp/email"
+
+type SendWelcomeEmailArgs struct {
+    Data email.TransactionalData
+}
+
+func (SendWelcomeEmailArgs) Kind() string { return "send_welcome_email" }
+```
+
+The `Kind()` string must be unique across all jobs in your application — River uses it to route a job to the correct worker.
+
+## Implementing a worker
+
+A worker is a struct that embeds `river.WorkerDefaults[T]` and implements a `Work` method. Place workers in `queue/workers/`.
+
+```go
+// queue/workers/send_welcome_email.go
+package workers
+
+import (
+    "context"
+
+    "github.com/riverqueue/river"
+
+    "myapp/email"
+    "myapp/queue/jobs"
+)
+
+type SendWelcomeEmailWorker struct {
+    river.WorkerDefaults[jobs.SendWelcomeEmailArgs]
+    sender email.TransactionalSender
+}
+
+func NewSendWelcomeEmailWorker(sender email.TransactionalSender) *SendWelcomeEmailWorker {
+    return &SendWelcomeEmailWorker{sender: sender}
+}
+
+func (w *SendWelcomeEmailWorker) Work(
+    ctx context.Context,
+    job *river.Job[jobs.SendWelcomeEmailArgs],
+) error {
+    return email.SendTransactional(ctx, job.Args.Data, w.sender)
+}
+```
+
+## Registering workers
+
+All workers are registered in `queue/workers/workers.go`:
+
+```go
+// queue/workers/workers.go
+package workers
+
+import (
+    "github.com/riverqueue/river"
+
+    "myapp/email"
+)
+
+func Register(
+    transactionalSender email.TransactionalSender,
+    marketingSender email.MarketingSender,
+) (*river.Workers, error) {
+    wrks := river.NewWorkers()
+
+    if err := river.AddWorkerSafely(wrks, NewSendTransactionalEmailWorker(transactionalSender)); err != nil {
+        return nil, err
+    }
+
+    if err := river.AddWorkerSafely(wrks, NewSendWelcomeEmailWorker(transactionalSender)); err != nil {
+        return nil, err
+    }
+
+    return wrks, nil
+}
+```
+
+## Enqueueing a job
+
+From a controller or service, inject the `queue.InsertOnly` client and call `Insert`:
+
+```go
+// Inside a controller or service
+_, err = insertOnly.Insert(ctx, jobs.SendWelcomeEmailArgs{
+    Data: email.TransactionalData{
+        To:       user.Email,
+        From:     config.DefaultSenderSignature,
+        Subject:  "Welcome!",
+        HTMLBody: html,
+        TextBody: text,
+    },
+}, nil)
+```
+
+To enqueue atomically within an existing transaction, use `InsertTx`:
+
+```go
+_, err = insertOnly.InsertTx(ctx, tx, jobs.SendWelcomeEmailArgs{
+    Data: emailData,
+}, nil)
+```
+
+This is the recommended pattern for jobs that depend on data being committed — the job will only appear in the queue if the surrounding transaction succeeds.
+
+## Retry behavior
+
+River retries failed jobs automatically using exponential backoff. If a job's `Work` method returns an error, River will schedule a retry. To cancel a job without retrying, return `river.JobCancel(err)`:
+
+```go
+func (w *SendTransactionalEmailWorker) Work(
+    ctx context.Context,
+    job *river.Job[jobs.SendTransactionalEmailArgs],
+) error {
+    err := email.SendTransactional(ctx, job.Args.Data, w.sender)
+    if err != nil {
+        if !email.IsRetryable(err) {
+            return river.JobCancel(err) // permanent failure, do not retry
+        }
+        return err // transient failure, River will retry
+    }
+    return nil
+}
+```
+
+## Multi-step workflows
+
+The `workflows` extension adds multi-step workflow support on top of River. Enable it when creating a new project:
+
+```bash
+andurel new myapp -e workflows
+```
+
+Or add it to an existing project:
+
+```bash
+andurel extension add workflows
+```
+
+The extension generates a `queue/workflow/` package with lifecycle management, dependency checking, and output passing between steps. It also creates the required database migrations for workflow state tables.
+
+The workflow dependency checker runs as a background goroutine and is wired into your application startup automatically:
+
+```go
+dependencyChecker := workflow.NewDependencyChecker(pool, 30*time.Second)
+// started alongside other background workers
+```

@@ -1,0 +1,87 @@
+---
+title: "Fragment generator"
+description: "Add a new method stub, route variable, and route registration to an existing controller."
+---
+
+The fragment generator adds a new action to an existing controller without regenerating the entire file. It performs three targeted modifications: inserting a method stub into the controller, adding a route variable to the routes file, and registering the route in the connect file.
+
+## Usage
+
+```bash
+andurel generate fragment [controller_name] [method_name] [path]
+```
+
+All three arguments are required.
+
+| Argument | Format | Example |
+|----------|--------|---------|
+| `controller_name` | PascalCase, singular | `Webhook`, `Article`, `Order` |
+| `method_name` | PascalCase | `Validate`, `ShowBySlug`, `Approve` |
+| `path` | Starts with `/`, may include params | `/validate`, `/:slug`, `/:id/approve` |
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--method` | `GET` | HTTP method: `GET`, `POST`, `PUT`, `DELETE`, or `PATCH` |
+
+## Examples
+
+```bash
+# Add a simple GET route with no path parameters
+andurel generate fragment Webhook Validate /validate
+
+# Add a route that matches by slug
+andurel generate fragment Article ShowBySlug /:slug --method GET
+
+# Add a POST action nested under a resource ID
+andurel generate fragment Order Approve /:id/approve --method POST
+```
+
+## Prerequisites
+
+The controller, routes, and connect files must all exist before running the fragment generator. Generate the controller first if it does not already exist:
+
+```bash
+andurel generate controller Order
+# then add a fragment to it
+andurel generate fragment Order Approve /:id/approve --method POST
+```
+
+## What gets modified
+
+The fragment generator modifies three existing files:
+
+| File | Modification |
+|------|-------------|
+| `controllers/{plural_name}.go` | Appends a new handler method stub |
+| `router/routes/{plural_name}.go` | Appends a new route variable declaration |
+| `router/connect_{plural_name}_routes.go` | Appends a new route registration entry |
+
+All three files must exist. The generator checks for existing duplicates across all three files before modifying any of them — if a duplicate is found, the command fails with no changes made.
+
+## Route type auto-detection
+
+The route constructor is chosen based on the path parameters present in the `path` argument:
+
+| Path parameter | Constructor used |
+|----------------|-----------------|
+| `:id` | `NewRouteWithUUIDID` (or `NewRouteWithSerialID` / `NewRouteWithBigSerialID` / `NewRouteWithStringID` based on existing routes) |
+| `:slug` | `NewRouteWithSlug` |
+| `:token` | `NewRouteWithToken` |
+| `:file` | `NewRouteWithFile` |
+| None | `NewSimpleRoute` |
+
+<Note>
+When the path contains `:id`, the generator inspects the existing routes file to detect the ID type already in use (UUID, serial, bigserial, or string) and matches it. This keeps ID types consistent within a controller. If no existing ID route is found, `NewRouteWithUUIDID` is used as the default.
+</Note>
+
+## Validation
+
+The fragment generator enforces several constraints before making any changes:
+
+- `controller_name` must be PascalCase and singular (e.g. `Article`, not `Articles`)
+- `method_name` must be PascalCase
+- `path` must start with `/`
+- `--method` must be one of `GET`, `POST`, `PUT`, `DELETE`, `PATCH`
+- The method must not already exist in the controller
+- The route variable must not already exist in the routes file
+- The route registration must not already exist in the connect file

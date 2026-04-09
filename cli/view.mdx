@@ -1,0 +1,70 @@
+---
+title: "andurel view"
+description: "Templ view generation and formatting helpers."
+---
+
+Compile and format [Templ](https://templ.guide) view templates. Andurel manages the `bin/templ` binary through `andurel.lock`; run `andurel tool sync` if the binary is missing.
+
+## Usage
+
+```bash
+andurel view [subcommand]
+```
+
+**Alias:** `v`
+
+## Prerequisites
+
+`bin/templ` must exist in the project root. Run `andurel tool sync` if you see:
+
+```
+templ binary not found at bin/templ. Run 'andurel tool sync' to download it
+```
+
+## Subcommands
+
+| Subcommand | Alias | Description |
+|------------|-------|-------------|
+| `generate` | `compile` | Compile all `.templ` files to Go code (`templ generate`). |
+| `format` | — | Format `.templ` files in the `views/` and `email/` directories (`templ fmt`). |
+
+---
+
+## andurel view generate
+
+Compile all `.templ` files in the project to their corresponding `*_templ.go` Go files. This is equivalent to running `bin/templ generate` from the project root.
+
+```bash
+andurel view generate
+```
+
+**Alias:** `compile`
+
+### Examples
+
+```bash
+andurel view generate
+andurel view compile   # alias
+andurel v generate
+```
+
+<Tip>
+The development server (`andurel run`) automatically recompiles templates on save. Use `andurel view generate` when you need to compile templates outside of the dev server, such as in CI.
+</Tip>
+
+---
+
+## andurel view format
+
+Format all `.templ` files in the `views/` and `email/` directories using `templ fmt`. Runs formatting on both directories in sequence.
+
+```bash
+andurel view format
+```
+
+### Examples
+
+```bash
+andurel view format
+andurel v format
+```

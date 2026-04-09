@@ -1,0 +1,47 @@
+---
+title: "andurel run"
+description: "Start the Andurel development server with live reload for Go, templates, and CSS."
+---
+
+Starts [Shadowfax](https://github.com/mbvlabs/shadowfax), the Andurel-specific development server orchestrator. Shadowfax watches your project for changes and automatically reloads Go code, Templ templates, and CSS without requiring a manual restart.
+
+## Usage
+
+```bash
+andurel run
+```
+
+**Alias:** `r`
+
+## Flags
+
+This command has no flags.
+
+## Prerequisites
+
+`bin/shadowfax` must exist in your project root. Run [`andurel tool sync`](/cli/tool) first if you have not done so already, or if you see an error like:
+
+```
+bin/shadowfax not found. Run 'andurel tool sync' to download it
+```
+
+## Behavior
+
+- The CLI locates the project root by walking up the directory tree until it finds `go.mod`.
+- It verifies that `bin/shadowfax` exists (when `andurel.lock` is present) before starting.
+- Shadowfax binds your application to `http://localhost:8080` by default.
+- All stdout, stderr, and stdin are passed through to the terminal.
+
+## Examples
+
+```bash
+# Start the development server from anywhere inside the project
+andurel run
+
+# Using the alias
+andurel r
+```
+
+<Tip>
+Run `andurel tool sync` once after cloning a project or creating a new one. This installs all binaries — including Shadowfax — listed in `andurel.lock`.
+</Tip>

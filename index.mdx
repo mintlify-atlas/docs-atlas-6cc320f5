@@ -1,97 +1,88 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
+title: "Welcome to Andurel"
+description: "The Rails-like Go framework you didn't know you needed. Build full-stack web applications fast with type safety, instant scaffolding, and batteries included."
 ---
 
-## Setting up
+Andurel is a comprehensive web development framework for Go, inspired by Ruby on Rails. It gives you just enough convention to ship features fast — without sacrificing type safety or code quality.
 
-Get your documentation site up and running in minutes.
-
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
-
-## Make it yours
-
-Design a docs site that looks great and empowers your users.
-
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
+<CardGroup cols={2}>
+  <Card title="Installation" icon="download" href="/installation">
+    Install the Andurel CLI and set up your development environment
   </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Create your first Andurel app and generate your first resource
   </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
+  <Card title="Core Concepts" icon="book" href="/concepts/project-structure">
+    Understand Andurel's project structure and conventions
   </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
+  <Card title="CLI Reference" icon="terminal" href="/cli/overview">
+    Explore all available CLI commands and their options
   </Card>
-</Columns>
+</CardGroup>
 
-## Create beautiful pages
+## Why Andurel?
 
-Everything you need to create world-class documentation.
+Andurel eliminates boilerplate and lets you focus on building features. One command creates a full CRUD resource — model, controller, views, routes, and SQL queries all wired together.
 
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
+<CardGroup cols={2}>
+  <Card title="Instant scaffolding" icon="wand-magic-sparkles" href="/generators/resources">
+    Generate complete CRUD resources with a single command
   </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
+  <Card title="Live reload" icon="arrows-rotate" href="/cli/run">
+    Hot reloading for Go, templates, and CSS in development
   </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
+  <Card title="Type-safe SQL" icon="database" href="/database/queries">
+    SQLC generates Go code from your SQL queries — no ORM magic
   </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
+  <Card title="Extensions" icon="puzzle-piece" href="/extensions/overview">
+    Add Docker, AWS SES, and workflow support with one command
   </Card>
-</Columns>
+</CardGroup>
 
-## Need inspiration?
+## Get started in minutes
 
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+<Steps>
+  <Step title="Install Andurel">
+    ```bash
+    go install github.com/mbvlabs/andurel@v1.0.0-beta.3
+    ```
+  </Step>
+  <Step title="Create a new project">
+    ```bash
+    andurel new myapp
+    cd myapp
+    andurel tool sync
+    ```
+  </Step>
+  <Step title="Configure your database">
+    ```bash
+    cp .env.example .env
+    # Edit .env with your PostgreSQL connection details
+    andurel migrate up
+    ```
+  </Step>
+  <Step title="Start developing">
+    ```bash
+    andurel run
+    ```
+    Your app is now running at `http://localhost:8080` with live reload enabled.
+  </Step>
+</Steps>
+
+## Core technologies
+
+Andurel is built on a carefully selected stack of proven Go libraries:
+
+| Technology | Purpose |
+|---|---|
+| [Echo](https://echo.labstack.com/) | High-performance HTTP router |
+| [SQLC](https://sqlc.dev/) | Type-safe SQL code generation |
+| [Templ](https://templ.guide/) | Type-safe HTML templates |
+| [Datastar](https://data-star.dev/) | Hypermedia-driven frontend interactivity |
+| [River](https://riverqueue.com/) | PostgreSQL-backed background jobs |
+| [OpenTelemetry](https://opentelemetry.io/) | Logs, traces, and metrics |
+| [Tailwind CSS](https://tailwindcss.com/) | Utility-first CSS |
+
+<Note>
+  Andurel currently supports **Linux** and **macOS** only. Windows support is not available yet. See [issue #382](https://github.com/mbvlabs/andurel/issues/382) if you'd like to contribute Windows support.
+</Note>

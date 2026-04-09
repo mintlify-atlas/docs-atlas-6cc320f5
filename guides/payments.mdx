@@ -1,0 +1,167 @@
+---
+title: "Payments (Paddle)"
+description: "Integrate Paddle-backed payments into your Andurel app using the reference implementation in examples/payments/."
+---
+
+Andurel provides a reference implementation for [Paddle](https://www.paddle.com/) payments in `examples/payments/`. Copy and adapt the files in this directory to add billing to your application.
+
+<Note>
+This is a view-only reference — it is not wired into the code generator. You must copy the files manually and adapt them to your project.
+</Note>
+
+## What the example includes
+
+**Config**
+- `config/paddle.go` — Paddle configuration struct (`PADDLE_API_KEY`, `PADDLE_ENVIRONMENT`, `PADDLE_WEBHOOK_SECRET`)
+
+**Client**
+- `clients/payment/paddle.go` — `PaddleClient` with `ListProducts`, `ListPrices`, `GetTransaction`, `VerifyWebhookSignature`, and `ParseWebhookEvent`
+
+**Controllers**
+- `controllers/payment_checkout.go` — checkout page (`GET /billing/checkout`)
+- `controllers/payment_pricing.go` — pricing page that lists active products (`GET /billing/pricing`)
+- `controllers/payment_account.go` — account/billing history page (`GET /billing/account`)
+- `controllers/payment_webhooks.go` — webhook receiver with signature verification (`POST /billing/webhook`)
+
+**Models**
+- `models/payment_customer.go` — `PaymentCustomer` with `FindPaymentCustomerByProviderID`, `CreatePaymentCustomer`
+- `models/payment_product.go` — `PaymentProduct` with `ListActiveProducts`, `FindPaymentProductByProviderID`
+- `models/payment_transaction.go` — `PaymentTransaction` with `FindPaymentTransactionByProviderID`, `UpdatePaymentTransactionStatus`
+
+**Routes**
+- `router/routes/payment.go` — route constants under `/billing` prefix
+- `router/connect_payment_routes.go` — `RegisterPaymentRoutes` wires the four controllers into Echo
+
+**Database**
+- Migrations for `payment_customers`, `payment_products`, and `payment_transactions` tables
+- SQLC query files for all three tables
+
+## Environment variables
+
+```bash
+PADDLE_API_KEY=your-paddle-api-key
+PADDLE_WEBHOOK_SECRET=your-webhook-signing-secret
+PADDLE_ENVIRONMENT=sandbox
+```
+
+Set `PADDLE_ENVIRONMENT` to `production` when you are ready to go live. The client automatically switches between `https://sandbox-api.paddle.com` and `https://api.paddle.com`.
+
+## Integration steps
+
+<Steps>
+  <Step title="Copy the new files">
+    Copy all files listed under **New files to add** from `examples/payments/` into the corresponding locations in your project. Then replace the placeholder module path:
+
+    ```bash
+    # Replace example.com/myapp with your actual Go module path
+    # (from your go.mod file)
+    grep -r "example.com/myapp" . --include="*.go" -l | xargs sed -i 's|example.com/myapp|github.com/yourorg/yourapp|g'
+    ```
+  </Step>
+
+  <Step title="Update config/config.go">
+    Add the `Paddle` field to your `Config` struct and initialize it:
+
+    ```go
+    type Config struct {
+        App       app
+        DB        database
+        Telemetry telemetry
+        Paddle    paddle       // add this
+    }
+
+    func NewConfig() Config {
+        return Config{
+            App:       newAppConfig(),
+            DB:        newDatabaseConfig(),
+            Telemetry: newTelemetryConfig(),
+            Paddle:    newPaddleConfig(), // add this
+        }
+    }
+    ```
+  </Step>
+
+  <Step title="Update cmd/app/main.go">
+    Import the payment client package and wire up the controllers:
+
+    ```go
+    import (
+        "yourmodule/clients/payment"
+    )
+
+    // Initialize the Paddle client
+    paddleClient := payment.NewPaddleClient(cfg.Paddle.APIKey, cfg.Paddle.Environment)
+
+    // Create payment controllers
+    paymentWebhooks := newPaymentWebhooks(db, paddleClient, cfg)
+    paymentCheckout := newPaymentCheckout(db, paddleClient, cfg)
+    paymentPricing  := newPaymentPricing(db, paddleClient)
+    paymentAccount  := newPaymentAccount(db, paddleClient)
+
+    // Register routes
+    if err := r.RegisterPaymentRoutes(paymentWebhooks, paymentCheckout, paymentPricing, paymentAccount); err != nil {
+        return err
+    }
+    ```
+  </Step>
+
+  <Step title="Add environment variables">
+    Add the Paddle variables to your `.env.example` (and your actual `.env`):
+
+    ```bash
+    PADDLE_API_KEY=
+    PADDLE_WEBHOOK_SECRET=
+    PADDLE_ENVIRONMENT=sandbox
+    ```
+  </Step>
+
+  <Step title="Run migrations">
+    Apply the new database migrations:
+
+    ```bash
+    andurel migrate up
+    ```
+
+    This creates the `payment_customers`, `payment_products`, and `payment_transactions` tables.
+  </Step>
+
+  <Step title="Regenerate SQLC queries">
+    After adding the new query files, regenerate the type-safe database code:
+
+    ```bash
+    andurel query compile
+    ```
+  </Step>
+
+  <Step title="Implement views and user-payment linking">
+    The controllers return placeholder JSON responses. Replace them with your Templ views.
+
+    The webhook handler (`controllers/payment_webhooks.go`) handles `transaction.completed` and `transaction.updated` events. You must add your own logic to link transactions to users in your system — the reference implementation logs the event and leaves a `TODO` comment where user-specific business logic belongs.
+
+    ```go
+    // controllers/payment_webhooks.go — handleTransactionCompleted
+    // TODO: implement user-payment linking
+    // 1. Look up your internal user by txData.CustomerID
+    // 2. Grant access, update subscription status, etc.
+    ```
+  </Step>
+</Steps>
+
+## Webhook signature verification
+
+The `PaddleClient` verifies incoming webhook signatures using HMAC-SHA256:
+
+```go
+func (c *PaddleClient) VerifyWebhookSignature(signature, requestBody, webhookSecret string) bool
+```
+
+The webhook controller reads the raw request body, verifies the `Paddle-Signature` header before parsing any data, and returns `401` if verification fails. Do not modify the request body before calling `VerifyWebhookSignature`.
+
+## Routes
+
+| Method | Path | Controller |
+|---|---|---|
+| `POST` | `/billing/webhook` | `PaymentWebhooks.Handle` |
+| `GET` | `/billing/checkout` | `PaymentCheckout.Show` |
+| `GET` | `/billing/pricing` | `PaymentPricing.Index` |
+| `GET` | `/billing/account` | `PaymentAccount.Index` |

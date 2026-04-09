@@ -1,0 +1,90 @@
+---
+title: "AWS SES extension"
+description: "Integrate AWS Simple Email Service into your Andurel project for transactional and marketing email sending."
+---
+
+The AWS SES extension scaffolds a fully wired email client backed by AWS Simple Email Service v2. It generates the client, configuration struct, and environment variable bindings, then injects the client into your application's controller dependencies automatically.
+
+## Adding the extension
+
+<Steps>
+  <Step title="At project creation">
+    ```bash
+    andurel new myapp -e aws-ses
+    ```
+  </Step>
+  <Step title="To an existing project">
+    ```bash
+    andurel extension add aws-ses
+    ```
+  </Step>
+</Steps>
+
+## What gets generated
+
+| File | Description |
+|---|---|
+| `clients/email/aws_ses.go` | AWS SES v2 email client implementing `TransactionalSender` and `MarketingSender` |
+| `config/aws_ses.go` | Configuration struct populated from environment variables |
+
+In addition to these files, the extension modifies your main application initialization to:
+
+- Import the `email` and `clients/email` packages
+- Add an `AwsSes` field to the application config struct
+- Initialize `emailClient` via `mailclients.NewAwsSes(...)` using the loaded config
+- Register `emailClient` as an `email.TransactionalSender` dependency on your controllers
+
+## Environment variables
+
+<Note>
+  You must have an active AWS account with SES v2 enabled and a verified sender identity or domain before these credentials will work.
+</Note>
+
+```bash
+AWS_REGION=us-east-1
+AWS_SES_ACCESS_KEY_ID=
+AWS_SES_SECRET_ACCESS_KEY=
+AWS_SES_CONFIGURATION_SET=
+```
+
+| Variable | Description |
+|---|---|
+| `AWS_REGION` | AWS region where your SES resources are provisioned (default: `us-east-1`) |
+| `AWS_SES_ACCESS_KEY_ID` | IAM access key with `ses:SendEmail` permission |
+| `AWS_SES_SECRET_ACCESS_KEY` | Secret key paired with the access key ID |
+| `AWS_SES_CONFIGURATION_SET` | Optional SES configuration set name for tracking and event publishing |
+
+Set these in your `.env` file (created from `.env.example`) before running the application.
+
+## How to use
+
+The `emailClient` is injected as an `email.TransactionalSender` dependency into your controllers. Controllers that need to send email declare it as a dependency and receive it automatically.
+
+The underlying `AwsSes` client implements both the `TransactionalSender` and `MarketingSender` interfaces from the `email` package, so the same client can handle both transactional (one-to-one) and marketing (broadcast) sends.
+
+Internally, the client is constructed with:
+
+```go
+mailclients.NewAwsSes(
+    cfg.AwsSes.Region,
+    cfg.AwsSes.AccessKeyID,
+    cfg.AwsSes.SecretAccessKey,
+    cfg.AwsSes.ConfigurationSet,
+)
+```
+
+This calls `config.LoadDefaultConfig` from the AWS SDK v2 with static credentials and returns an `*AwsSes` that wraps a `sesv2.Client`.
+
+### Error handling
+
+The client maps SES API errors to typed errors from the `email` package:
+
+| Error type | SES conditions |
+|---|---|
+| `email.ValidationError` | `ValidationError`, `InvalidParameterValue`, `MessageRejected` |
+| `email.PermanentError` | `AccountSendingPausedException`, `MailFromDomainNotVerifiedException`, `ConfigurationSetDoesNotExist` |
+| `email.TemporaryError` | `Throttling`, `ServiceUnavailable`, `TooManyRequests`, and all unknown errors |
+
+<Warning>
+  `NewAwsSes` panics if the AWS SDK fails to load configuration. Ensure all required environment variables are set before starting the application.
+</Warning>

@@ -1,23 +1,11 @@
 {
-  "$schema": "https://mintlify.com/docs.json",
-  "name": "Andurel",
+  "projectType": "framework",
+  "projectName": "Andurel",
+  "projectDescription": "A Rails-inspired full-stack web framework for Go that provides instant scaffolding, live reload, type-safe SQL, and batteries-included conventions for building web applications fast.",
   "theme": "palm",
-  "colors": {
-    "primary": "#94cb04",
-    "light": "#545454"
-  },
-  "favicon": "/favicon.svg",
-  "navbar": {
-    "primary": {
-      "type": "github",
-      "href": "https://github.com/mbvlabs/andurel"
-    }
-  },
-  "footer": {
-    "socials": {
-      "github": "https://github.com/mbvlabs/andurel"
-    }
-  },
+  "primaryColor": "#94cb04",
+  "lightColor": "#545454",
+  "darkColor": null,
   "navigation": {
     "tabs": [
       {
@@ -101,5 +89,34 @@
         ]
       }
     ]
-  }
+  },
+  "keyFeatures": [
+    "Instant CRUD scaffolding with andurel generate resource",
+    "Live reload for Go, templates, and CSS via Shadowfax",
+    "Type-safe SQL with SQLC code generation",
+    "Type-safe HTML templates with Templ",
+    "Hypermedia-driven interactivity via Datastar",
+    "PostgreSQL-backed background jobs and workflows with River",
+    "Built-in authentication, sessions, and CSRF protection",
+    "OpenTelemetry observability (logs, traces, metrics)",
+    "Extension system for Docker, AWS SES, and workflows",
+    "Batteries-included email support with Mailpit and AWS SES"
+  ],
+  "publicApiSurface": [
+    "andurel new [project-name]",
+    "andurel run",
+    "andurel generate resource [name]",
+    "andurel generate model [name]",
+    "andurel generate controller [name]",
+    "andurel generate view [name]",
+    "andurel generate fragment [controller] [method] [path]",
+    "andurel migrate new/up/down/status/reset/fix",
+    "andurel database create/drop/nuke/rebuild/seed",
+    "andurel query generate/refresh/compile/validate",
+    "andurel view generate/format",
+    "andurel tool sync",
+    "andurel extension add/list",
+    "andurel upgrade",
+    "andurel doctor"
+  ]
 }

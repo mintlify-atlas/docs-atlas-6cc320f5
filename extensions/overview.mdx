@@ -1,0 +1,67 @@
+---
+title: "Extensions"
+description: "Optional features that augment a generated Andurel project with additional capabilities."
+---
+
+Extensions are optional modules that scaffold additional files, configuration, and wiring into your Andurel project. Each extension is applied once — it generates the relevant code and registers itself in `andurel.lock` so it is never applied twice.
+
+## Adding extensions
+
+### At project creation
+
+Pass the `-e` flag to `andurel new` with a comma-separated list of extension names:
+
+```bash
+andurel new myapp -e docker
+andurel new myapp -e docker,aws-ses
+```
+
+### To an existing project
+
+```bash
+andurel extension add [extension-name]
+```
+
+For example:
+
+```bash
+andurel extension add docker
+andurel extension add aws-ses
+andurel extension add workflows
+```
+
+### Listing applied extensions
+
+```bash
+andurel extension list
+```
+
+The command reads `andurel.lock` and prints each applied extension along with the timestamp it was added:
+
+```
+Extensions:
+  - docker (applied: 2024-01-15T10:30:00Z)
+  - aws-ses (applied: 2024-01-15T10:30:01Z)
+```
+
+## The andurel.lock file
+
+`andurel.lock` is a file at the root of your project that tracks which extensions have been applied and when. Andurel reads this file before applying an extension to prevent duplicate scaffolding. Commit this file to version control.
+
+## Extension dependencies
+
+Some extensions may declare dependencies on other extensions. When an extension has dependencies, Andurel ensures those are applied first. Currently, `docker`, `aws-ses`, and `workflows` have no inter-dependencies and can be applied independently or together in any order.
+
+## Available extensions
+
+<CardGroup cols={2}>
+  <Card title="Docker" icon="docker" href="/extensions/docker">
+    Adds a multi-stage `Dockerfile` and `.dockerignore` for containerizing your Andurel application.
+  </Card>
+  <Card title="AWS SES" icon="envelope" href="/extensions/aws-ses">
+    Integrates AWS Simple Email Service for transactional and marketing email sending.
+  </Card>
+  <Card title="Workflows" icon="diagram-project" href="/extensions/workflows">
+    Adds River-backed multi-step workflow orchestration with dependency tracking and a background checker.
+  </Card>
+</CardGroup>

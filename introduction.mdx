@@ -1,0 +1,67 @@
+---
+title: "Introduction"
+description: "Andurel is a Rails-like web framework for Go that prioritizes development speed without sacrificing type safety."
+---
+
+Andurel is a comprehensive web development framework for Go, inspired by Ruby on Rails. It uses just enough convention to let you build full-stack web applications fast — while keeping the type safety and performance you expect from Go.
+
+<Note>
+  Andurel is currently in **beta**. APIs and commands may change before the stable release. See the [GitHub repository](https://github.com/mbvlabs/andurel) for the latest updates.
+</Note>
+
+## What is Andurel?
+
+Andurel wraps a curated set of Go libraries — Echo, SQLC, Templ, Datastar, River — behind a unified CLI and project structure. Instead of wiring these tools together yourself, Andurel scaffolds everything: models, controllers, views, routes, SQL queries, and migrations are all generated and wired up with a single command.
+
+The framework's core philosophy is **development speed through just enough convention**. Convention over configuration is valuable up to a point. Andurel provides sensible defaults that stay out of your way, without locking you into magic you can't understand or override.
+
+## Why choose Andurel over raw Echo or Gin?
+
+Using Echo or Gin directly means writing a lot of structural code before you can ship features: setting up routing, database connections, template rendering, live reload, background jobs, CSRF protection, sessions, and more. Andurel handles all of that for you.
+
+The key difference is the **generator workflow**. When you need a new resource — say, a `Product` — one command creates the database migration, Go model, HTTP controller, Templ views, and SQL queries. The generated code is plain Go that you own and can modify freely.
+
+<CardGroup cols={2}>
+  <Card title="Instant scaffolding" icon="wand-magic-sparkles" href="/generators/resources">
+    Generate a complete CRUD resource — model, controller, views, routes, and SQL — with a single command.
+  </Card>
+  <Card title="Live reload" icon="arrows-rotate" href="/cli/run">
+    `andurel run` starts the development server with hot reloading for Go code, Templ templates, and CSS. Powered by [Shadowfax](https://github.com/mbvlabs/shadowfax).
+  </Card>
+  <Card title="Type-safe SQL" icon="database" href="/database/queries">
+    SQLC generates Go code directly from your SQL queries. No ORM, no reflection — just type-safe functions that match your schema.
+  </Card>
+  <Card title="Type-safe templates" icon="code" href="/generators/views">
+    Templ compiles HTML templates to Go at build time. Template errors are caught by the compiler, not at runtime.
+  </Card>
+</CardGroup>
+
+## Key differentiators
+
+- **Batteries included** — Echo, Datastar, background jobs (River), sessions, CSRF protection, OpenTelemetry, email support, and authentication are all configured and ready to use.
+- **PostgreSQL-first** — Built around PostgreSQL with the pgx driver, River for background jobs and workflows, and native UUID support.
+- **Extensions** — Add Docker, AWS SES email, and workflow support with `andurel extension add`.
+- **You own the generated code** — Resource generation is a one-time scaffold. After that, the code is yours to modify without framework interference.
+
+## Platform support
+
+<Note>
+  Andurel supports **Linux** and **macOS** only. Windows is not supported at this time. If you want to help bring Windows support to Andurel, see [issue #382](https://github.com/mbvlabs/andurel/issues/382).
+</Note>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Installation" icon="download" href="/installation">
+    Install the Andurel CLI and required prerequisites.
+  </Card>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Create your first project and generate your first resource.
+  </Card>
+  <Card title="Project structure" icon="folder-tree" href="/concepts/project-structure">
+    Understand how an Andurel project is organized.
+  </Card>
+  <Card title="CLI reference" icon="terminal" href="/cli/overview">
+    Explore all available commands and their options.
+  </Card>
+</CardGroup>

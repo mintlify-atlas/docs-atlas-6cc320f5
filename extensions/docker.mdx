@@ -1,0 +1,96 @@
+---
+title: "Docker extension"
+description: "Scaffold a production-ready multi-stage Dockerfile and .dockerignore for your Andurel application."
+---
+
+The Docker extension generates a `Dockerfile` and `.dockerignore` at the root of your project, giving you a production-ready container build out of the box.
+
+## Adding the extension
+
+<Steps>
+  <Step title="At project creation">
+    ```bash
+    andurel new myapp -e docker
+    ```
+  </Step>
+  <Step title="To an existing project">
+    ```bash
+    andurel extension add docker
+    ```
+  </Step>
+</Steps>
+
+## What gets generated
+
+| File | Description |
+|---|---|
+| `Dockerfile` | Multi-stage build producing a minimal production image |
+| `.dockerignore` | Excludes development artifacts from the build context |
+
+## How the Dockerfile works
+
+The generated Dockerfile uses a multi-stage build to produce a small, dependency-free production image.
+
+**Stage 1 — CSS builder (Tailwind projects only)**
+
+When your project uses Tailwind CSS, a first stage based on `debian:bookworm-slim` runs the bundled `tailwindcli` binary to compile and minify your CSS before the Go build begins:
+
+```dockerfile
+FROM debian:bookworm-slim AS css-builder
+
+WORKDIR /usr/src/app
+
+COPY bin/tailwindcli ./bin/tailwindcli
+COPY css ./css
+COPY views ./views
+
+RUN ./bin/tailwindcli -i ./css/base.css -o ./assets/css/styles.css --minify
+```
+
+**Stage 2 — Go builder**
+
+A `golang:${GO_VERSION}-bookworm` image downloads module dependencies, copies your source, and compiles a statically linked binary with CGO disabled:
+
+```dockerfile
+FROM golang:${GO_VERSION}-bookworm AS builder
+
+WORKDIR /usr/src/app
+
+COPY go.mod go.sum ./
+RUN go mod download && go mod verify
+
+COPY . .
+
+RUN CGO_ENABLED=0 GOOS=linux go build -v -o /run-app ./cmd/app
+```
+
+**Stage 3 — Runtime image**
+
+The final image is `debian:bookworm-slim` with only CA certificates installed. Only the compiled binary is copied in, keeping the image small:
+
+```dockerfile
+FROM debian:bookworm-slim
+
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /run-app /usr/local/bin/run-app
+
+WORKDIR /app
+
+EXPOSE 8080
+
+CMD ["run-app"]
+```
+
+## Use cases
+
+- Deploying to any OCI-compatible container runtime (Docker, Podman, containerd)
+- Pushing to cloud container registries (AWS ECR, GCP Artifact Registry, Docker Hub)
+- Running on container orchestration platforms (Kubernetes, ECS, Fly.io, Railway)
+- Consistent, reproducible builds in CI pipelines
+
+<Tip>
+  The binary is compiled with `CGO_ENABLED=0`, so it has no C library dependencies and will run on any Linux container without additional runtime libraries.
+</Tip>

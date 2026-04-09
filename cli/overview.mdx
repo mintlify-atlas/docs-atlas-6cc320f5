@@ -1,0 +1,68 @@
+---
+title: "CLI overview"
+description: "Complete reference for the Andurel command-line interface."
+---
+
+The Andurel CLI is the primary interface for creating projects, generating code, managing databases, and running development tools. Every command is available from any directory inside an Andurel project (the CLI locates the project root via `go.mod`).
+
+## Usage
+
+```bash
+andurel [command] [subcommand] [flags]
+```
+
+Run `andurel` with no arguments to print the banner and command list.
+
+## Commands
+
+<CardGroup cols={2}>
+  <Card title="run" icon="play" href="/cli/run">
+    Start the development server with live reload for Go, templates, and CSS. Alias: `r`
+  </Card>
+  <Card title="new" icon="folder-plus" href="/cli/new">
+    Scaffold a new Andurel project with full directory structure and configuration.
+  </Card>
+  <Card title="generate" icon="wand-magic-sparkles" href="/cli/generate">
+    Code generators for models, controllers, views, resources, and route fragments. Aliases: `g`, `gen`
+  </Card>
+  <Card title="database" icon="database" href="/cli/database">
+    Database lifecycle commands: seed, create, drop, nuke, rebuild. Aliases: `d`, `db`
+  </Card>
+  <Card title="migrate" icon="arrows-up-down" href="/cli/migrate">
+    Migration management powered by Goose: new, up, down, status, fix, reset, up-to, down-to. Aliases: `m`, `mig`
+  </Card>
+  <Card title="query" icon="magnifying-glass" href="/cli/query">
+    SQLC query helpers: generate, refresh, compile, validate. Alias: `q`
+  </Card>
+  <Card title="view" icon="eye" href="/cli/view">
+    Templ view generation and formatting: generate, format. Alias: `v`
+  </Card>
+  <Card title="tool" icon="wrench" href="/cli/tool">
+    Manage project tool binaries: sync all tools from `andurel.lock`, or pin a specific tool version. Alias: `t`
+  </Card>
+  <Card title="extension" icon="puzzle-piece" href="/cli/extension">
+    Add and list project extensions (docker, aws-ses, workflows). Aliases: `ext`, `e`
+  </Card>
+  <Card title="upgrade" icon="arrow-up-circle" href="/cli/upgrade">
+    Upgrade framework-managed files to the version bundled with the current CLI binary.
+  </Card>
+  <Card title="doctor" icon="stethoscope" href="/cli/doctor">
+    Run project diagnostics: environment, configuration, code quality, and code generation checks.
+  </Card>
+</CardGroup>
+
+## Additional commands
+
+| Command | Description |
+|---------|-------------|
+| `andurel app console` (alias: `a c`) | Open an interactive SQL console against the project database using `usql`. Reads credentials from `.env`. |
+| `andurel app dblab` (alias: `a d`) | Open a terminal database UI (dblab) connected to the project database. |
+| `andurel app mailpit` (alias: `a m`) | Start the Mailpit local email server. SMTP on port 1025, web UI on port 8025. |
+| `andurel tool sync` (alias: `t`) | Download and validate all binaries listed in `andurel.lock`. See [tool](/cli/tool). |
+| `andurel llm` | Print comprehensive framework documentation for AI assistants. Subcommands: `controllers`, `models`, `views`, `router`, `hypermedia`, `jobs`, `config`. |
+
+## Global behavior
+
+- Commands that require a project context walk up the directory tree to find `go.mod`. You do not need to be in the project root.
+- Commands that call tool binaries (goose, sqlc, templ, shadowfax) expect those binaries to exist under `bin/` in the project root. Run `andurel tool sync` after creating a new project or cloning an existing one.
+- Database commands read credentials from the `.env` file at the project root using the variables `DB_KIND`, `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, and `DB_SSL_MODE`.

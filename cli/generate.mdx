@@ -1,0 +1,197 @@
+---
+title: "andurel generate"
+description: "Code generators for models, controllers, views, full resources, and route fragments."
+---
+
+Generates code scaffolds for common application building blocks. All generators require an Andurel project (located via `go.mod`) and change the working directory to the project root before running so that generated file paths resolve correctly.
+
+If a generator fails partway through, it automatically removes any files it created during that run to leave the project in a clean state.
+
+## Usage
+
+```bash
+andurel generate [subcommand] [flags]
+```
+
+**Aliases:** `g`, `gen`
+
+## Subcommands
+
+| Subcommand | Alias | Description |
+|------------|-------|-------------|
+| `model` | `m` | Generate a model, SQLC queries, and a factory. |
+| `controller` | `c` | Generate a resource controller with full CRUD actions and routes. |
+| `view` | `v` | Generate Templ view templates for an existing model. |
+| `resource` | `r` | Generate a complete resource: model + controller + views + routes. |
+| `fragment` | — | Add a method, route variable, and route registration to an existing controller. |
+
+---
+
+## andurel generate model
+
+Generate a model for an existing (or soon-to-be-created) database table. The model includes struct types, CRUD functions, type conversions from SQLC rows, and a factory for test data.
+
+```bash
+andurel generate model [name] [flags]
+```
+
+**Alias:** `m`
+
+### Flags
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--table-name` | string | plural of `name` | Override the default table name inferred from the model name. |
+| `--skip-factory` | bool | `false` | Skip generating a factory file for test data. |
+
+### Examples
+
+```bash
+# Generate a model for the 'users' table
+andurel generate model User
+
+# Generate a model pointing to a custom table name
+andurel generate model User --table-name=accounts
+
+# Generate without a factory
+andurel generate model User --skip-factory
+
+# Using the alias
+andurel g m Product
+```
+
+---
+
+## andurel generate controller
+
+Generate a resource controller with full CRUD actions (Index, Show, New, Create, Edit, Update, Destroy) and corresponding route definitions. The model must exist before generating a controller.
+
+```bash
+andurel generate controller [model_name] [flags]
+```
+
+**Alias:** `c`
+
+### Flags
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--with-views` | bool | `false` | Also generate Templ view templates alongside the controller. |
+
+### Examples
+
+```bash
+# Generate a controller only
+andurel generate controller User
+
+# Generate controller and views together
+andurel generate controller User --with-views
+
+# Using the alias
+andurel g c Product --with-views
+```
+
+---
+
+## andurel generate view
+
+Generate Templ view templates for an existing model. The model must exist before generating views.
+
+```bash
+andurel generate view [model_name] [flags]
+```
+
+**Alias:** `v`
+
+### Flags
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--with-controller` | bool | `false` | Also generate a resource controller alongside the views. |
+
+### Examples
+
+```bash
+# Generate views only
+andurel generate view User
+
+# Generate views and controller together
+andurel generate view User --with-controller
+
+# Using the alias
+andurel g v Product
+```
+
+---
+
+## andurel generate resource
+
+Generate a complete resource in one command: model, controller with CRUD actions, Templ views, and route definitions. This is equivalent to running `generate model` then `generate controller --with-views`.
+
+```bash
+andurel generate resource [name] [flags]
+```
+
+**Alias:** `r`
+
+<Note>
+`generate resource` always generates a factory. Use `generate model --skip-factory` separately if you need to omit it.
+</Note>
+
+### Flags
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--table-name` | string | plural of `name` | Override the default table name. |
+
+### Examples
+
+```bash
+# Generate a full Product resource
+andurel generate resource Product
+
+# Use a custom table name
+andurel generate resource Feedback --table-name=user_feedback
+
+# Using the alias
+andurel g r Order
+```
+
+---
+
+## andurel generate fragment
+
+Add a single method stub, route variable, and route registration to an existing controller. Use this to extend a controller with a non-standard action without re-generating the whole resource.
+
+The route type is inferred from path parameters in the provided path:
+
+| Path parameter | Route type used |
+|----------------|-----------------|
+| `:id` | `NewRouteWithUUIDID` (or Serial/BigSerial/String based on existing routes) |
+| `:slug` | `NewRouteWithSlug` |
+| `:token` | `NewRouteWithToken` |
+| `:file` | `NewRouteWithFile` |
+| _(none)_ | `NewSimpleRoute` |
+
+```bash
+andurel generate fragment [controller_name] [method_name] [path] [flags]
+```
+
+### Flags
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--method` | string | `GET` | HTTP method for the route. Valid values: `GET`, `POST`, `PUT`, `DELETE`, `PATCH`. |
+
+### Examples
+
+```bash
+# Add a GET /validate route to the Webhook controller
+andurel generate fragment Webhook Validate /validate
+
+# Add a GET /:slug route to the Article controller
+andurel generate fragment Article ShowBySlug /:slug --method GET
+
+# Add a POST /:id/approve route to the Order controller
+andurel generate fragment Order Approve /:id/approve --method POST
+```

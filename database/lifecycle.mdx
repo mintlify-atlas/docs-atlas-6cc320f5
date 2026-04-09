@@ -1,0 +1,124 @@
+---
+title: "Database lifecycle"
+description: "Create, drop, and rebuild your PostgreSQL database with the andurel database command."
+---
+
+The `andurel database` command (aliases: `d`, `db`) manages the PostgreSQL database lifecycle. All commands read connection details from your project's `.env` file.
+
+## Environment variables
+
+Every database lifecycle command requires the following variables to be present in `.env`:
+
+```bash .env
+DB_KIND=postgres
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=myapp_development
+DB_USER=postgres
+DB_PASSWORD=secret
+DB_SSL_MODE=disable
+```
+
+<Info>
+  Database lifecycle commands only support PostgreSQL (`DB_KIND=postgres`).
+</Info>
+
+## Commands
+
+| Command | Description |
+|---|---|
+| `andurel database create` | Create the configured database |
+| `andurel database drop` | Drop the database (prompts for confirmation) |
+| `andurel database nuke` | Drop and recreate the database (prompts for confirmation) |
+| `andurel database rebuild` | Drop, recreate, migrate, and seed |
+| `andurel database seed` | Run `database/seeds/main.go` |
+
+## create
+
+Creates the database named by `DB_NAME`.
+
+```bash
+andurel database create
+```
+
+## drop
+
+<Warning>
+  This permanently deletes all data in the database. The command prompts for confirmation before proceeding. Andurel refuses to drop system databases (`postgres`, `template0`, `template1`) unless you pass `--force`.
+</Warning>
+
+```bash
+andurel database drop
+
+# Allow dropping a system database
+andurel database drop --force
+```
+
+## nuke
+
+<Warning>
+  Drops and immediately recreates the database, destroying all data. Prompts for confirmation. Supports `--force` to allow nuking system databases.
+</Warning>
+
+```bash
+andurel database nuke
+
+# Allow nuking a system database
+andurel database nuke --force
+```
+
+## rebuild
+
+The most complete reset operation. It drops the database, recreates it, applies all migrations, and runs the seed file.
+
+```bash
+andurel database rebuild
+
+# Skip seeding after migrations
+andurel database rebuild --skip-seed
+
+# Allow rebuilding a system database
+andurel database rebuild --force
+```
+
+<Warning>
+  `rebuild` is destructive and cannot be undone. It will destroy all existing data before re-running migrations and seeds.
+</Warning>
+
+### Rebuild workflow
+
+<Steps>
+  <Step title="Drop the database">
+    Andurel prompts for confirmation, terminates active connections, then drops the database.
+  </Step>
+
+  <Step title="Recreate the database">
+    A fresh empty database is created with the name from `DB_NAME`.
+  </Step>
+
+  <Step title="Apply all migrations">
+    Equivalent to running `andurel migrate up` — every pending migration in `database/migrations/` is applied in order.
+  </Step>
+
+  <Step title="Run seeds">
+    Equivalent to running `andurel database seed` — executes `database/seeds/main.go` to populate the database with initial data. Pass `--skip-seed` to omit this step.
+  </Step>
+</Steps>
+
+## seed
+
+Runs `database/seeds/main.go` using `go run ./database/seeds`.
+
+```bash
+andurel database seed
+```
+
+Edit `database/seeds/main.go` to add seed data using model factories. The seed command is also available as a top-level alias:
+
+```bash
+andurel seed
+```
+
+<Tip>
+  Use `--skip-seed` with `andurel database rebuild` in CI environments where you only need a clean, migrated schema without fixture data.
+</Tip>

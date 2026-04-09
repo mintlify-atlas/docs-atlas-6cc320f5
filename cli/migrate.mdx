@@ -1,0 +1,172 @@
+---
+title: "andurel migrate"
+description: "Database migration management powered by Goose."
+---
+
+Manage SQL migrations for your Andurel project using [Goose](https://github.com/pressly/goose). Migrations live in `database/migrations/` and are applied against the database configured in `.env`.
+
+## Usage
+
+```bash
+andurel migrate [subcommand] [flags]
+```
+
+**Aliases:** `m`, `mig`
+
+## Prerequisites
+
+- `bin/goose` must exist. Run `andurel tool sync` if it is missing.
+- The `.env` file must contain valid database credentials (`DB_KIND`, `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_SSL_MODE`).
+
+## Subcommands
+
+| Subcommand | Description |
+|------------|-------------|
+| `new [name]` | Create a new SQL migration file. |
+| `up` | Apply all pending migrations. |
+| `down` | Rollback the most recent applied migration. |
+| `status` | Show the current migration version and the status of all migrations. |
+| `fix` | Re-number migration files to fix sequence gaps. |
+| `reset` | Rollback all migrations and reapply them from the beginning. |
+| `up-to [version]` | Apply migrations up to and including a specific version. |
+| `down-to [version]` | Rollback migrations down to (but not past) a specific version. |
+
+---
+
+## andurel migrate new
+
+Create a new SQL migration file in `database/migrations/`. Goose generates the file with an auto-incremented version number prefix.
+
+```bash
+andurel migrate new [name]
+```
+
+### Example
+
+```bash
+andurel migrate new create_users_table
+andurel migrate new add_email_to_users
+andurel mig new create_products_table
+```
+
+---
+
+## andurel migrate up
+
+Apply all migrations that have not yet been applied.
+
+```bash
+andurel migrate up
+```
+
+### Example
+
+```bash
+andurel migrate up
+andurel m up
+```
+
+---
+
+## andurel migrate down
+
+Rollback the single most recently applied migration.
+
+```bash
+andurel migrate down
+```
+
+### Example
+
+```bash
+andurel migrate down
+andurel m down
+```
+
+---
+
+## andurel migrate status
+
+Display the current migration version and list all migration files with their applied/pending status.
+
+```bash
+andurel migrate status
+```
+
+### Example
+
+```bash
+andurel migrate status
+andurel mig status
+```
+
+---
+
+## andurel migrate fix
+
+Re-sequence migration file names to eliminate numbering gaps. Useful when migration files have been added out of order or deleted.
+
+```bash
+andurel migrate fix
+```
+
+### Example
+
+```bash
+andurel migrate fix
+```
+
+---
+
+## andurel migrate reset
+
+Rollback all applied migrations in reverse order, then reapply all of them from the beginning. Useful for a full schema refresh during development.
+
+```bash
+andurel migrate reset
+```
+
+<Warning>
+This rewrites your entire schema. All data that depends on schema state may be affected.
+</Warning>
+
+### Example
+
+```bash
+andurel migrate reset
+andurel m reset
+```
+
+---
+
+## andurel migrate up-to
+
+Apply migrations up to and including a specific version number.
+
+```bash
+andurel migrate up-to [version]
+```
+
+### Example
+
+```bash
+andurel migrate up-to 20240315120000
+andurel mig up-to 3
+```
+
+---
+
+## andurel migrate down-to
+
+Rollback migrations down to (but not including) a specific version number.
+
+```bash
+andurel migrate down-to [version]
+```
+
+### Example
+
+```bash
+andurel migrate down-to 20240315120000
+andurel mig down-to 1
+```

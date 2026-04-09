@@ -1,0 +1,77 @@
+---
+title: "andurel new"
+description: "Scaffold a new Andurel project with the full directory structure, configuration, and dependencies."
+---
+
+Creates a new Andurel project in a new subdirectory, or in the current directory if you pass `.` (the directory must be empty).
+
+## Usage
+
+```bash
+andurel new [project-name] [flags]
+```
+
+## Flags
+
+| Flag | Short | Type | Default | Description |
+|------|-------|------|---------|-------------|
+| `--css` | `-c` | string | `tailwind` | CSS framework to use. Valid values: `tailwind`, `vanilla`. |
+| `--extensions` | `-e` | string slice | — | Comma-separated list of extensions to enable at project creation. |
+
+<Note>
+`--css vanilla` is a work in progress and not properly supported before v1.0.0. Use `tailwind` for all projects until then.
+</Note>
+
+## Available extensions
+
+| Extension | Description |
+|-----------|-------------|
+| `docker` | Adds a `Dockerfile` for containerizing the application. |
+| `aws-ses` | Configures the email client to use AWS SES instead of Mailpit. |
+| `workflows` | Enables River-powered background workflow support. |
+
+Extensions can also be added to an existing project with [`andurel extension add`](/cli/extension).
+
+## Examples
+
+```bash
+# Create a new project with Tailwind CSS (default)
+andurel new myapp
+
+# Create in the current directory (must be empty)
+andurel new .
+
+# Use vanilla CSS instead of Tailwind
+andurel new myapp --css vanilla
+
+# Enable Docker support
+andurel new myapp --extensions docker
+
+# Enable multiple extensions at once
+andurel new myapp -e docker,aws-ses
+
+# Combine flags
+andurel new myapp --css tailwind --extensions docker,workflows
+```
+
+## After creating a project
+
+```bash
+cd myapp
+
+# Download all tool binaries (goose, sqlc, templ, shadowfax, …)
+andurel tool sync
+
+# Set up your environment
+cp .env.example .env
+# Edit .env with your database connection details
+
+# Create the database if it does not exist yet
+andurel database create
+
+# Apply migrations
+andurel migrate up
+
+# Start the development server
+andurel run
+```

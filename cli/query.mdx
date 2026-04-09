@@ -1,0 +1,111 @@
+---
+title: "andurel query"
+description: "SQLC query helpers for generating, refreshing, compiling, and validating SQL query files."
+---
+
+Manage SQLC-backed SQL query files and the Go code generated from them. Use this command to generate type-safe query wrappers for tables that do not need a full model (junction tables, lookup tables, etc.), or to compile and validate all queries in your project.
+
+## Usage
+
+```bash
+andurel query [subcommand]
+```
+
+**Alias:** `q`
+
+## Prerequisites
+
+- `bin/sqlc` must exist. Run `andurel tool sync` if it is missing.
+- `database/sqlc.yaml` must be present and must satisfy the framework's required settings (checked automatically before compile/validate).
+
+## Subcommands
+
+| Subcommand | Description |
+|------------|-------------|
+| `generate [table_name]` | Generate a SQL query file and SQLC types for a database table. |
+| `refresh [table_name]` | Refresh an existing SQL query file to match the current table schema. |
+| `compile` | Compile all SQL queries (`sqlc compile` + `sqlc generate`). |
+| `validate` | Validate `database/sqlc.yaml` against the framework's required SQLC configuration. |
+
+---
+
+## andurel query generate
+
+Generate a SQL query file (`database/queries/{table_name}.sql`) and the corresponding SQLC-generated Go types for a specific database table. The table name is used exactly as provided — no naming conventions are applied. Returns an error if the table is not found in the migration files.
+
+This command is intended for tables that do not need a full model wrapper (junction tables, reference tables, etc.). The generated query functions are still exposed through the `models/` package, not imported directly.
+
+```bash
+andurel query generate [table_name]
+```
+
+### Examples
+
+```bash
+# Generate queries for a junction table
+andurel query generate user_roles
+
+# Generate queries for an organization membership table
+andurel query generate users_organizations
+
+# Using the alias
+andurel q generate user_roles
+```
+
+---
+
+## andurel query refresh
+
+Refresh an existing SQL query file for a table to keep it in sync with the current schema. Use this after altering a table's columns and re-running migrations.
+
+```bash
+andurel query refresh [table_name]
+```
+
+### Examples
+
+```bash
+andurel query refresh user_roles
+andurel query refresh users_organizations
+andurel q refresh user_roles
+```
+
+---
+
+## andurel query compile
+
+Compile all SQL queries to check for errors and regenerate Go code. Runs `sqlc compile` followed by `sqlc generate` in sequence.
+
+```bash
+andurel query compile
+```
+
+### Example
+
+```bash
+andurel query compile
+andurel q compile
+```
+
+<Tip>
+Run `andurel query compile` after modifying any `.sql` file in `database/queries/` to regenerate the Go code in `models/internal/db/`.
+</Tip>
+
+---
+
+## andurel query validate
+
+Validate `database/sqlc.yaml` against the framework's required base configuration (`internal/storage/andurel_sqlc_config.yaml`). Checks that all required keys, values, and overrides are present and match what Andurel expects.
+
+```bash
+andurel query validate
+```
+
+### Example
+
+```bash
+andurel query validate
+andurel q validate
+```
+
+On success, prints the path to the active runtime config. On failure, lists all mismatched or missing configuration keys.

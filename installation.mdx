@@ -1,0 +1,88 @@
+---
+title: "Installation"
+description: "Install the Andurel CLI and set up your development environment."
+---
+
+<Warning>
+  Andurel supports **Linux** and **macOS** only. Windows is not supported at this time. If you are on Windows, see [issue #382](https://github.com/mbvlabs/andurel/issues/382) for updates.
+</Warning>
+
+## Prerequisites
+
+Before installing Andurel, make sure you have the following installed:
+
+- **Go 1.24 or later** — Andurel and the generated projects require Go 1.24+. Download from [go.dev](https://go.dev/dl/).
+- **PostgreSQL** — Andurel is built around PostgreSQL. You need a running PostgreSQL instance to create and migrate your database.
+- **Linux or macOS** — Windows is not supported.
+
+## Install the CLI
+
+<Steps>
+  <Step title="Install the Andurel CLI">
+    Run the following command to install the `andurel` binary using `go install`:
+
+    ```bash
+    go install github.com/mbvlabs/andurel@v1.0.0-beta.3
+    ```
+
+    This installs the `andurel` binary to your `$GOPATH/bin` directory. Make sure `$GOPATH/bin` (or `$(go env GOPATH)/bin`) is in your `$PATH`.
+  </Step>
+  <Step title="Verify the installation">
+    Confirm the CLI is available and check the installed version:
+
+    ```bash
+    andurel --version
+    ```
+
+    You should see output similar to:
+
+    ```
+    andurel version v1.0.0-beta.3 (built: 2025-01-01)
+    ```
+  </Step>
+</Steps>
+
+## Tool dependencies
+
+Andurel manages a set of project-local tool binaries that it uses to build and run your application. These are separate from the `andurel` CLI itself and are downloaded per project.
+
+| Tool | Purpose | Version |
+|---|---|---|
+| `shadowfax` | Development server with live reload | v0.2.7 |
+| `templ` | Compile Templ templates to Go | v0.3.1001 |
+| `sqlc` | Generate Go code from SQL queries | v1.30.0 |
+| `goose` | Database migrations | v3.27.0 |
+| `tailwindcli` | Build Tailwind CSS | v4.2.1 |
+| `mailpit` | Local email testing server | v1.29.2 |
+| `dblab` | Terminal database UI | v0.34.3 |
+| `usql` | Universal SQL CLI (used by `andurel app console`) | v0.21.1 |
+
+These tools are **not** installed globally. Each project stores its binaries in a local `bin/` directory, with versions tracked in an `andurel.lock` file at the project root.
+
+### Syncing tools
+
+After creating a new project, run the following command from the project directory to download all required tool binaries:
+
+```bash
+andurel tool sync
+```
+
+`andurel tool sync` reads `andurel.lock`, downloads the correct binary version for your OS and architecture, and places it in `bin/`. Running it again will skip binaries that are already up to date and update any that have changed.
+
+### The andurel.lock file
+
+The `andurel.lock` file records the exact version of each tool binary your project requires. Commit this file to version control so that everyone working on the project uses the same tool versions. When the framework is upgraded, `andurel.lock` is updated automatically.
+
+You can pin a specific tool version manually with:
+
+```bash
+andurel tool set-version <tool> <version>
+```
+
+## Next steps
+
+With the CLI installed, create your first project:
+
+<Card title="Quickstart" icon="rocket" href="/quickstart">
+  Create a new Andurel project and get your first app running with live reload.
+</Card>

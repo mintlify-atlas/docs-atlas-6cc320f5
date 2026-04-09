@@ -1,0 +1,83 @@
+---
+title: "View generator"
+description: "Generate Templ view templates for a resource, with optional controller generation."
+---
+
+The view generator creates [Templ](https://templ.guide/) template files for a resource. Templ is a type-safe HTML templating language that compiles to Go — giving you compile-time guarantees on your templates.
+
+## Usage
+
+```bash
+andurel generate view [model_name]
+```
+
+**Alias:** `andurel g v [name]`
+
+| Flag | Description |
+|------|-------------|
+| `--with-controller` | Generate a controller alongside the view templates |
+
+## Examples
+
+```bash
+# Generate view templates only
+andurel generate view Product
+
+# Generate view templates and a controller together
+andurel generate view Product --with-controller
+```
+
+## Prerequisites
+
+The model must already exist before generating views. If the model file is not found, the generator will print an error and stop.
+
+```bash
+# Generate the model first
+andurel generate model Product
+
+# Then generate views
+andurel generate view Product
+```
+
+## What gets created
+
+Running `andurel generate view Product` produces:
+
+| File | Description |
+|------|-------------|
+| `views/products_resource.templ` | Templ template source — edit this file |
+| `views/products_resource_templ.go` | Generated Go code compiled from the `.templ` file — do not edit |
+
+The `.templ` file contains template functions for the index, show, new, and edit pages of the resource.
+
+When `--with-controller` is passed, the controller and route files are generated too (equivalent to running the [controller generator](/generators/controllers) separately):
+
+| File | Description |
+|------|-------------|
+| `controllers/products.go` | Controller with all CRUD action handlers |
+| `router/routes/products.go` | Route variable definitions |
+| `router/connect_products_routes.go` | Route registration file |
+
+## Regenerating compiled view files
+
+Andurel provides a separate command to regenerate all `*_templ.go` files from their `.templ` sources across the entire project. Run this after editing any `.templ` file if live reload is not running:
+
+```bash
+andurel view generate
+```
+
+You can also format all Templ files:
+
+```bash
+andurel view format
+```
+
+<Warning>
+Never edit `*_templ.go` files directly. They are auto-generated from the corresponding `.templ` source and will be overwritten the next time `andurel view generate` runs (or on live reload with `andurel run`).
+</Warning>
+
+## Templ templates
+
+The generated `.templ` file uses standard Templ syntax. You can use all Templ features — components, layouts, conditional rendering, loops, and type-safe props — inside these files. Refer to the [Templ documentation](https://templ.guide/) for full syntax reference.
+
+The development server (`andurel run`) watches `.templ` files and automatically recompiles them on save via live reload.

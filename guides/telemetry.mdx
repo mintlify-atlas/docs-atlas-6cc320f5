@@ -1,0 +1,150 @@
+---
+title: "Telemetry"
+description: "Andurel has built-in structured logging, distributed tracing, and application metrics via OpenTelemetry."
+---
+
+Andurel ships with full observability support via [OpenTelemetry](https://opentelemetry.io/). Logs, traces, and metrics are all initialized at startup and available throughout your application without any additional setup.
+
+## Directory structure
+
+```
+telemetry/
+├── logger.go     # Structured logging handler with automatic trace correlation
+├── tracer.go     # Distributed tracing — get a tracer, start spans
+├── metrics.go    # Application and runtime metrics
+└── helpers.go    # Convenience functions for common span operations
+```
+
+## Configuration
+
+Telemetry is configured in `config/telemetry.go` via environment variables:
+
+```bash
+# .env
+TELEMETRY_SERVICE_NAME=myapp
+TELEMETRY_SERVICE_VERSION=1.0.0
+
+# OTLP endpoints — leave empty to disable export
+OTLP_LOGS_ENDPOINT=
+OTLP_METRICS_ENDPOINT=
+OTLP_TRACES_ENDPOINT=
+
+# Optional: add authentication headers for your OTLP backend
+OTLP_HEADERS=Authorization=Bearer your-token
+
+# Fraction of traces to sample (1.0 = 100%, 0.1 = 10%)
+TRACE_SAMPLE_RATE=1.0
+
+TELEMETRY_BATCH_SIZE=512
+TELEMETRY_BATCH_TIMEOUT_MS=5000
+```
+
+When an OTLP endpoint is not set, the exporter is disabled and no data is sent. Logs still go to stdout.
+
+## Logging
+
+Andurel uses Go's standard `log/slog` package. The logger is configured at startup with a custom handler that automatically correlates log entries with the active trace span:
+
+```go
+// telemetry/logger.go — the handler adds trace_id and span_id to every log record
+// when a span is active in the context
+```
+
+Use `slog` with the request context in controllers and services to get automatic trace correlation:
+
+```go
+func (c MyController) Show(ec *echo.Context) error {
+    ctx := ec.Request().Context()
+
+    slog.InfoContext(ctx, "handling request", "user_id", userID)
+
+    result, err := doSomething(ctx)
+    if err != nil {
+        slog.ErrorContext(ctx, "operation failed", "error", err)
+        return err
+    }
+
+    return ec.Render(200, "show", result)
+}
+```
+
+Log entries will include `trace_id` and `span_id` fields whenever the request has an active span, making it straightforward to correlate logs with traces in your observability backend.
+
+## Tracing
+
+Get a tracer and start spans using the helpers in `telemetry/helpers.go`:
+
+```go
+import "myapp/telemetry"
+
+func processOrder(ctx context.Context, orderID string) error {
+    ctx, span := telemetry.StartSpan(ctx, "processOrder")
+    defer span.End()
+
+    // add attributes to the span
+    ctx, span = telemetry.StartSpanAttrs(ctx, "validateOrder",
+        attribute.String("order.id", orderID),
+    )
+    defer span.End()
+
+    if err := validate(ctx, orderID); err != nil {
+        telemetry.RecErr(span, err) // records the error and sets status to Error
+        return err
+    }
+
+    telemetry.AddEvent(span, "order.validated")
+    return nil
+}
+```
+
+Available helpers:
+
+| Function | Description |
+|---|---|
+| `telemetry.StartSpan(ctx, name)` | Start a new span; returns updated context and span |
+| `telemetry.StartSpanAttrs(ctx, name, attrs...)` | Start a span with initial attributes |
+| `telemetry.RecErr(span, err)` | Record an error on the span and set its status to `Error` |
+| `telemetry.AddEvent(span, name, attrs...)` | Add a named event to the span |
+
+You can also get a tracer directly:
+
+```go
+tracer := telemetry.GetTracer(config.ServiceName)
+ctx, span := tracer.Start(ctx, "my-span")
+defer span.End()
+```
+
+## Metrics
+
+Andurel records HTTP metrics automatically for every request:
+
+| Metric | Type | Description |
+|---|---|---|
+| `http_requests_total` | Counter | Total HTTP requests |
+| `http_requests_in_flight` | UpDownCounter | Requests currently being served |
+| `http_request_duration_seconds` | Histogram | Request latency |
+| `http_request_size_bytes` | Histogram | Request body size |
+| `http_response_size_bytes` | Histogram | Response body size |
+
+Runtime metrics are also collected, including goroutine counts, memory allocation stats, and GC pause durations (matching the Prometheus Go collector convention).
+
+To define a custom metric:
+
+```go
+import (
+    "myapp/telemetry"
+    "go.opentelemetry.io/otel/metric"
+)
+
+var ordersProcessed, _ = telemetry.GetMeter(config.ServiceName).Int64Counter(
+    "orders_processed_total",
+    metric.WithDescription("Total number of orders processed"),
+)
+
+// In your handler or service:
+ordersProcessed.Add(ctx, 1)
+```
+
+<Tip>
+If your OTLP backend requires authentication, set `OTLP_HEADERS` to a comma-separated list of `key=value` pairs. For example: `Authorization=Bearer token123`.
+</Tip>

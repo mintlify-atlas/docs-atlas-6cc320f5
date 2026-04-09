@@ -1,0 +1,105 @@
+---
+title: "Tech stack"
+description: "Every technology in an Andurel application and why it was chosen."
+---
+
+Andurel is an integration of well-established open-source libraries rather than a collection of custom implementations. This page explains what each piece does and why it was included.
+
+<CardGroup cols={2}>
+  <Card title="Echo" icon="bolt" href="https://echo.labstack.com/">
+    High-performance HTTP router and middleware framework for Go.
+  </Card>
+  <Card title="SQLC" icon="database" href="https://sqlc.dev/">
+    Generates type-safe Go code from raw SQL queries.
+  </Card>
+  <Card title="Templ" icon="code" href="https://templ.guide/">
+    Type-safe HTML templates compiled to Go functions.
+  </Card>
+  <Card title="Datastar" icon="signal" href="https://data-star.dev/">
+    Hypermedia-driven frontend interactivity over SSE.
+  </Card>
+  <Card title="River" icon="layer-group" href="https://riverqueue.com/">
+    PostgreSQL-backed background job queue with workflow support.
+  </Card>
+  <Card title="OpenTelemetry" icon="chart-line" href="https://opentelemetry.io/">
+    Structured logging, distributed tracing, and metrics.
+  </Card>
+  <Card title="pgx/v5" icon="elephant" href="https://github.com/jackc/pgx">
+    PostgreSQL driver with native UUID support and connection pooling.
+  </Card>
+  <Card title="Tailwind CSS" icon="paintbrush" href="https://tailwindcss.com/">
+    Utility-first CSS framework compiled to a minimal stylesheet.
+  </Card>
+  <Card title="Goose" icon="arrow-up" href="https://pressly.github.io/goose/">
+    SQL migration runner with versioned up/down migrations.
+  </Card>
+  <Card title="Cobra" icon="terminal" href="https://cobra.dev/">
+    CLI framework powering the `andurel` command itself.
+  </Card>
+  <Card title="Shadowfax" icon="rotate" href="https://github.com/mbvlabs/shadowfax">
+    Andurel-specific dev server with live reload for Go, templates, and CSS.
+  </Card>
+  <Card title="godotenv + caarlos0/env" icon="file-lines" href="https://github.com/caarlos0/env">
+    `.env` file loading and typed environment variable parsing.
+  </Card>
+</CardGroup>
+
+## Detailed breakdown
+
+### Echo
+
+[Echo](https://echo.labstack.com/) is the HTTP framework at the center of every Andurel application. It handles routing, middleware, request binding, and response rendering. Echo was chosen for its performance, clean API, and first-class middleware support. Controllers in Andurel use the standard Echo handler signature (`func(echo.Context) error`), so everything you know about Echo applies directly.
+
+### SQLC
+
+[SQLC](https://sqlc.dev/) takes a different approach from ORMs: you write plain SQL in `database/queries/`, and SQLC generates fully type-safe Go functions and structs from it. There's no query builder to learn and no runtime reflection — the generated code in `models/internal/db/` is as fast as hand-written database code.
+
+Run `andurel query compile` to regenerate after editing your SQL files.
+
+<Note>
+  SQLC is one of the tools managed by `andurel.lock`. Andurel downloads a pinned version to `bin/` so you don't need to install it globally.
+</Note>
+
+### Templ
+
+[Templ](https://templ.guide/) brings type safety to HTML templating. Templates are written in `.templ` files (a Go-adjacent syntax) and compiled to ordinary Go functions. If a template references a variable that doesn't exist, you get a compile error — not a runtime panic. Run `andurel view generate` to compile templates, or use `andurel run` which handles this automatically during development.
+
+<Note>
+  Like SQLC, Templ is managed by `andurel.lock` and downloaded to `bin/` on `andurel tool sync`.
+</Note>
+
+### Datastar
+
+[Datastar](https://data-star.dev/) enables hypermedia-driven interactivity without a heavy JavaScript framework. The server sends HTML fragments and signals over Server-Sent Events (SSE); the browser applies them. Andurel's `internal/hypermedia/` package provides helpers for writing Datastar responses from Echo controllers.
+
+### River
+
+[River](https://riverqueue.com/) is a PostgreSQL-backed job queue. It stores jobs in the same database as your application — no separate Redis or message broker required. River supports reliable delivery, retries, scheduled jobs, and workflow-style job dependencies. Define jobs in `queue/jobs/` and register workers in `queue/workers/`.
+
+### OpenTelemetry
+
+Andurel includes [OpenTelemetry](https://opentelemetry.io/) from the start. The `telemetry/` package sets up structured logging, distributed tracing, and application metrics, all configured from `config/telemetry.go` and your `.env` values. This makes it straightforward to ship traces to a collector like Jaeger or Honeycomb without retrofitting observability later.
+
+### pgx/v5
+
+[pgx](https://github.com/jackc/pgx) is the PostgreSQL driver used throughout. It provides native support for PostgreSQL types including UUIDs, arrays, and JSONB without needing extra serialization. SQLC is configured to emit pgx-compatible code, so the two work together seamlessly.
+
+### Tailwind CSS
+
+[Tailwind CSS](https://tailwindcss.com/) is compiled from source files in `css/` to an optimized stylesheet in `assets/css/`. The Tailwind CLI binary is managed by `andurel.lock` — run `andurel tool sync` to download it. During development, `andurel run` watches for changes and recompiles automatically.
+
+### Goose
+
+[Goose](https://pressly.github.io/goose/) manages SQL migrations in `database/migrations/`. Andurel wraps Goose through the `andurel migrate` subcommands so you rarely need to invoke it directly. Goose is also managed by `andurel.lock`.
+
+### Cobra
+
+[Cobra](https://cobra.dev/) powers the `andurel` CLI itself. If you need to add custom CLI commands to your application (e.g., a seed command or a one-off data script), Cobra is already available in your dependency tree.
+
+### Shadowfax
+
+[Shadowfax](https://github.com/mbvlabs/shadowfax) is the development server built specifically for Andurel. Running `andurel run` starts Shadowfax, which watches for changes to Go files, `.templ` files, and CSS source files and triggers the appropriate recompile + reload. It is downloaded to `bin/shadowfax` and its version is pinned in `andurel.lock`.
+
+### godotenv + caarlos0/env
+
+Environment configuration is loaded from `.env` using [godotenv](https://github.com/joho/godotenv) and parsed into typed structs using [caarlos0/env](https://github.com/caarlos0/env). This means config values are validated at startup and accessed as typed Go fields rather than raw strings.

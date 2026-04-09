@@ -1,0 +1,128 @@
+---
+title: "Project structure"
+description: "An overview of the directories and files in a generated Andurel application."
+---
+
+When you run `andurel new myapp`, Andurel scaffolds a complete project with a predictable layout. Every directory has a clear purpose — here's a reference for what lives where.
+
+```
+myapp/
+├── assets/              # Static assets
+│   ├── css/             # Compiled CSS output
+│   ├── js/              # JavaScript files
+│   └── assets.go
+├── bin/                 # Managed binaries (shadowfax, goose, sqlc, templ, etc.)
+├── clients/             # External service clients
+│   └── email/           # Email client (Mailpit / AWS SES)
+├── cmd/
+│   └── app/             # Main web application entry point
+├── config/              # Application configuration
+│   ├── app.go           # Sessions, tokens, security settings
+│   ├── database.go      # Database connection setup
+│   ├── email.go         # Email configuration
+│   ├── telemetry.go     # Logging, tracing, metrics config
+│   └── config.go        # Main config aggregator
+├── controllers/         # HTTP request handlers
+│   ├── controller.go    # Base controller utilities
+│   ├── cache.go         # Cache control helpers
+│   ├── pages.go         # Page controllers
+│   └── assets.go        # Asset serving
+├── css/                 # Tailwind CSS source files (input)
+├── database/
+│   ├── migrations/      # SQL migration files (managed by Goose)
+│   ├── queries/         # SQLC query definitions (.sql files)
+│   └── sqlc.yaml        # SQLC user overlay configuration
+├── email/               # Email functionality
+│   ├── email.go         # Email client and sending logic
+│   ├── base_layout.templ
+│   └── components.templ
+├── internal/            # Internal framework packages
+│   ├── hypermedia/      # Datastar / SSE helpers
+│   ├── renderer/        # Template rendering
+│   ├── routing/         # Routing utilities
+│   ├── server/          # Server configuration
+│   └── storage/         # Storage utilities and SQLC base config
+├── models/              # Data models and business logic
+│   ├── model.go         # Base model setup
+│   ├── factories/       # Model factories for testing
+│   └── internal/db/     # Generated SQLC code — do not edit
+├── queue/               # Background job processing
+│   ├── jobs/            # Job definitions
+│   └── workers/         # Worker implementations
+├── router/              # Routes and middleware
+│   ├── router.go        # Main router setup
+│   ├── routes/          # Typed route variable definitions
+│   ├── cookies/         # Cookie and session helpers
+│   └── middleware/      # Custom middleware
+├── services/            # Business logic services
+│   ├── authentication.go
+│   ├── registration.go
+│   └── reset_password.go
+├── telemetry/           # Observability setup
+│   ├── logger.go        # Structured logging
+│   ├── tracer.go        # Distributed tracing
+│   ├── metrics.go       # Application metrics
+│   └── helpers.go       # Telemetry utilities
+├── views/               # Templ template source files
+│   ├── components/      # Reusable template components
+│   ├── *.templ          # Template source files
+│   └── *_templ.go       # Generated Go code — do not edit
+├── .env.example         # Example environment variables
+├── andurel.lock         # Framework and tool version lock file
+├── go.mod
+└── go.sum
+```
+
+## Key directories
+
+### `cmd/app/`
+
+The application entry point. This is where `main.go` lives. It wires together configuration, the Echo server, middleware, the router, and any background workers.
+
+### `controllers/`
+
+Echo handler functions that handle HTTP requests. Each resource you generate adds a controller file here. Handlers receive an `echo.Context` and return an error following the standard Echo pattern.
+
+### `database/`
+
+Everything related to your database schema and queries lives here:
+
+- **`migrations/`** — SQL files managed by Goose. Run `andurel migrate up` to apply them.
+- **`queries/`** — Raw SQL query files consumed by SQLC. Write your queries here, then run `andurel query compile` to regenerate the Go code in `models/internal/db/`.
+- **`sqlc.yaml`** — Your project-level SQLC configuration overlay. Andurel merges this with its own base config.
+
+### `models/`
+
+Data model structs and the factories used in tests. The `internal/db/` subdirectory contains all SQLC-generated code — **do not edit files in `models/internal/db/`** directly; they are overwritten every time you run `andurel query compile`.
+
+### `views/`
+
+Templ template source files (`.templ`). When you run `andurel view generate`, each `.templ` file is compiled into a corresponding `_templ.go` file. **Do not edit `*_templ.go` files** — they are regenerated on every compile.
+
+### `router/`
+
+Route definitions and middleware. Routes are declared as typed variables in `router/routes/`, which provides compile-time safety when building URLs or redirecting.
+
+### `internal/`
+
+Framework-level packages that support the rest of the application: Datastar/SSE helpers for hypermedia responses, the template renderer, server setup, and storage utilities. You can extend these, but most generated code calls into them rather than living here.
+
+### `bin/`
+
+Binaries downloaded and managed by Andurel itself — things like `shadowfax`, `goose`, `sqlc`, `templ`, and `tailwindcli`. Their versions are pinned in `andurel.lock`. Run `andurel tool sync` to download or update them.
+
+### `telemetry/`
+
+OpenTelemetry setup for structured logging, distributed tracing, and metrics. Configuration is driven by `config/telemetry.go` and the values in your `.env` file.
+
+### `queue/`
+
+Background job infrastructure built on River. Define jobs in `queue/jobs/` and implement workers in `queue/workers/`. Workers are registered and started alongside the web server.
+
+<Warning>
+  Never edit files in `models/internal/db/` or any `*_templ.go` file — both are fully regenerated by their respective tools and any manual changes will be overwritten.
+</Warning>
+
+<Note>
+  `andurel.lock` pins the versions of framework-managed tools (goose, sqlc, templ, shadowfax, tailwindcli). Commit this file to version control so every developer on the project uses the same tool versions.
+</Note>

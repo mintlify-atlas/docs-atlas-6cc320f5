@@ -1,0 +1,88 @@
+---
+title: "andurel doctor"
+description: "Run comprehensive diagnostics on your Andurel project to identify configuration, tooling, and code quality issues."
+---
+
+Run a suite of diagnostic checks against your project and print a pass/warn/fail result for each one. Use `doctor` to quickly verify that your environment, configuration, and generated code are all in order before committing or deploying.
+
+## Usage
+
+```bash
+andurel doctor [flags]
+```
+
+## Flags
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--verbose` | bool | `false` | Show detailed output from all checks, including full error messages and per-tool version details. Without this flag, only the first few lines of failing output are shown. |
+
+## Checks performed
+
+### Environment
+
+| Check | What it verifies |
+|-------|-----------------|
+| Go version | Reports the Go runtime version in use. Always passes; informational only. |
+| Andurel project | Verifies that `go.mod` can be found by walking up the directory tree. Fails if not in an Andurel project. |
+
+### Configuration
+
+| Check | What it verifies |
+|-------|-----------------|
+| `andurel.lock` | Verifies that the lock file exists and can be parsed. Reports the framework version and tool count on success. |
+| Andurel version | Compares the version recorded in `andurel.lock` against the running CLI version. Warns if they differ. |
+| Tool versions | Checks each tool in `bin/` against the version pinned in `andurel.lock`. Warns on missing, unknown, or mismatched versions. |
+
+### Code quality
+
+| Check | What it verifies |
+|-------|-----------------|
+| `go vet` | Runs `go vet ./...` and fails if any issues are reported. Shows up to 3 issues in normal mode; all issues with `--verbose`. |
+| `go mod tidy` | Runs `go mod tidy` and compares `go.mod`/`go.sum` before and after. Warns if changes would be made (i.e., the files are not tidy). Restores original files after checking. |
+
+### Code generation
+
+| Check | What it verifies |
+|-------|-----------------|
+| Views generate | Runs `bin/templ generate` and fails if any templates have errors. Skipped if `bin/templ` does not exist. |
+| SQLC compile | Runs `bin/sqlc compile` against the effective SQLC configuration. Fails if any SQL queries have errors. Skipped if `bin/sqlc` does not exist or if `database/sqlc.yaml` is invalid. |
+
+## Exit behavior
+
+- Exits with a non-zero code if any check has status **fail**.
+- Exits with code 0 if all checks pass (warnings do not cause a non-zero exit).
+
+## Output format
+
+Each check prints one of three symbols followed by the check name and a short message:
+
+```
+✓ Check name: success message
+⚠ Check name: warning message
+✗ Check name: failure message
+```
+
+A summary section at the end totals passed, warned, and failed checks:
+
+```
+=== Summary ===
+Total checks: 9
+✓ Passed: 7
+⚠ Warnings: 1
+✗ Failed: 1
+```
+
+## Examples
+
+```bash
+# Run all checks with concise output
+andurel doctor
+
+# Run all checks with full output from each check
+andurel doctor --verbose
+```
+
+<Tip>
+Use `andurel doctor --verbose` in CI pipelines to surface the full output of any failing check without needing to re-run individual commands.
+</Tip>

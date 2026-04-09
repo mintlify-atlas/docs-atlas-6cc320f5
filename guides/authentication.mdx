@@ -1,0 +1,117 @@
+---
+title: "Authentication"
+description: "Andurel ships with session-based authentication including registration, login, email verification, and password reset."
+---
+
+Andurel includes authentication out of the box. It is session-based — users log in with an email and password, and a session cookie is set for subsequent requests. There are no JWTs involved.
+
+## What's included
+
+| File | Responsibility |
+|---|---|
+| `services/authentication.go` | Validates credentials and returns the authenticated user |
+| `services/registration.go` | Creates new users, sends verification email |
+| `services/reset_password.go` | Issues and redeems password-reset tokens |
+| `router/middleware/auth.go` | `AuthOnly` middleware to protect routes |
+| `router/cookies/cookies.go` | Session read/write helpers |
+| `config/app.go` | Session keys, token signing key, CSRF configuration |
+
+## Configuration
+
+Session and token configuration lives in `config/app.go` and is driven by environment variables:
+
+```bash
+# .env
+SESSION_KEY=your-32-byte-session-key
+SESSION_ENCRYPTION_KEY=your-32-byte-encryption-key
+TOKEN_SIGNING_KEY=your-token-signing-key
+CSRF_STRATEGY=header_only
+CSRF_TRUSTED_ORIGINS=https://myapp.com
+```
+
+<Warning>
+`SESSION_KEY`, `SESSION_ENCRYPTION_KEY`, and `TOKEN_SIGNING_KEY` must be set before the application will start. Use `openssl rand -hex 32` to generate secure values.
+</Warning>
+
+## Authentication flow
+
+<Steps>
+  <Step title="Register">
+    The user submits email and password to `POST /registrations`. `services.RegisterUser` creates the user record and enqueues a `SendTransactionalEmail` job to send a verification email. The registration runs inside a database transaction — the user and the email job are either both committed or both rolled back.
+
+    ```go
+    // services/registration.go
+    func RegisterUser(ctx context.Context, db storage.Pool, insertOnly queue.InsertOnly, salt string, data RegisterUserData) error
+    ```
+  </Step>
+
+  <Step title="Verify email">
+    The user clicks the link in the verification email. The link contains a one-time code token valid for 24 hours. `services.VerifyEmail` validates the token, marks `email_validated_at` on the user record, and deletes the token.
+
+    ```go
+    func VerifyEmail(ctx context.Context, db storage.Pool, salt string, data VerifyEmailData) (models.User, error)
+    ```
+  </Step>
+
+  <Step title="Log in">
+    The user submits credentials to `POST /sessions`. `services.AuthenticateUser` looks up the user by email, verifies the bcrypt password hash, and checks that the email has been verified. If successful, `cookies.CreateAppSession` writes the session cookie.
+
+    ```go
+    // services/authentication.go
+    func AuthenticateUser(ctx context.Context, db storage.Pool, salt string, data LoginData) (models.User, error)
+    ```
+
+    Possible errors:
+    - `ErrInvalidCredentials` — email not found or wrong password
+    - `ErrEmailNotVerified` — account exists but email has not been confirmed
+  </Step>
+
+  <Step title="Access protected routes">
+    The `AuthOnly` middleware reads the session cookie on every request. If `IsAuthenticated` is false, the user is redirected to the login page.
+
+    ```go
+    // router/middleware/auth.go
+    func AuthOnly(next echo.HandlerFunc) echo.HandlerFunc {
+        return func(c *echo.Context) error {
+            if cookies.GetApp(c).IsAuthenticated {
+                return next(c)
+            }
+            return c.Redirect(http.StatusSeeOther, routes.SessionNew.URL())
+        }
+    }
+    ```
+
+    Apply it to a route group in `router/router.go`:
+
+    ```go
+    protected := e.Group("", middleware.AuthOnly)
+    protected.GET("/dashboard", controllers.Dashboard)
+    ```
+  </Step>
+</Steps>
+
+## Password reset flow
+
+The password reset service sends a time-limited reset link (valid for 1 hour) via a transactional email job:
+
+```go
+// services/reset_password.go
+func RequestResetPassword(ctx context.Context, db storage.Pool, insertOnly queue.InsertOnly, salt string, data RequestResetPasswordData) error
+
+func ResetPassword(ctx context.Context, db storage.Pool, salt string, data ResetPasswordData) error
+```
+
+`RequestResetPassword` is deliberately silent when the email is not found to prevent user enumeration.
+
+## CSRF protection
+
+CSRF protection is built in. The default strategy is `header_only`, which expects a CSRF token in the request header rather than a form field. You can set `CSRF_TRUSTED_ORIGINS` (comma-separated) to allow cross-origin requests from specific domains.
+
+## Rate limiting
+
+The `IPRateLimiter` middleware is available in `router/middleware/` for protecting sensitive routes such as login:
+
+```go
+// Limit to 10 attempts per 10-minute window, redirect on excess
+e.POST("/sessions", controllers.SessionCreate, middleware.IPRateLimiter(10, routes.SessionNew))
+```

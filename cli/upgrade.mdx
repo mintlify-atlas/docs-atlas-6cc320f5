@@ -1,0 +1,58 @@
+---
+title: "andurel upgrade"
+description: "Upgrade framework-managed files and tool versions to the version bundled with the current CLI binary."
+---
+
+Replace framework-managed files with the latest versions bundled in the CLI binary and update tool versions in `andurel.lock`. After upgrading, you are responsible for updating your application code to accommodate any API changes introduced by the new framework version.
+
+## Usage
+
+```bash
+andurel upgrade [flags]
+```
+
+## Flags
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--dry-run` | bool | `false` | Show which files would be changed and which tool versions would be updated, without applying any changes. |
+
+## What it does
+
+1. Replaces framework-managed files with the versions bundled in the current CLI binary.
+2. Updates tool versions in `andurel.lock` to the versions expected by the new framework release.
+3. If any tool versions changed, automatically runs `andurel tool sync` to download updated binaries.
+
+<Warning>
+Commit your current changes or create a new branch before running `andurel upgrade`. This command modifies files in place and cannot be automatically reverted.
+</Warning>
+
+## After upgrading
+
+```bash
+# 1. Review all changes
+git diff
+
+# 2. Update your application code for any API changes
+
+# 3. Test your application
+andurel run
+
+# 4. Commit when everything works
+git add .
+git commit -m "chore: upgrade andurel framework"
+```
+
+## Examples
+
+```bash
+# Preview what would change without applying anything
+andurel upgrade --dry-run
+
+# Apply the upgrade
+andurel upgrade
+```
+
+<Tip>
+Use `--dry-run` first to understand the scope of changes before committing to an upgrade, especially across major version boundaries.
+</Tip>
